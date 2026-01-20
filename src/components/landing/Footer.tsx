@@ -60,7 +60,7 @@ export function Footer() {
 
         <div className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2025 Game of Creators. All rights reserved.
+            © 2026 Game of Creators. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
