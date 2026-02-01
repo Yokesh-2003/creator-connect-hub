@@ -43,7 +43,7 @@ export function HowItWorks() {
         </motion.div>
 
         <div className="relative">
-          {/* Connection line */}
+         
           <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/20 via-primary to-primary/20 -translate-y-1/2" />
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -57,7 +57,7 @@ export function HowItWorks() {
                 className="relative"
               >
                 <div className="bg-card rounded-2xl p-8 border border-border hover:border-primary/50 transition-all duration-300 hover:shadow-lg h-full">
-                  {/* Step number */}
+                
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold">
                     {index + 1}
                   </div>

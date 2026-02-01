@@ -1,22 +1,16 @@
 import { supabase } from "@/integrations/supabase/client";
 
-/**
- * Environment variables
- */
+
 const TIKTOK_CLIENT_ID = import.meta.env.VITE_TIKTOK_CLIENT_ID;
 const TIKTOK_REDIRECT_URI =
   import.meta.env.VITE_TIKTOK_REDIRECT_URI ||
   `${window.location.origin}/auth/tiktok/callback`;
 
-/**
- * Start TikTok OAuth (Login Kit v2)
- */
 export function initiateTikTokOAuth(): void {
   if (!TIKTOK_CLIENT_ID) {
     throw new Error("TikTok Client ID is not configured");
   }
 
-  // CSRF protection
   const state = crypto.randomUUID();
   sessionStorage.setItem("tiktok_oauth_state", state);
 
@@ -26,7 +20,6 @@ export function initiateTikTokOAuth(): void {
   authUrl.searchParams.set("redirect_uri", TIKTOK_REDIRECT_URI);
   authUrl.searchParams.set("response_type", "code");
 
-  // ✅ ONLY allowed scope
   authUrl.searchParams.set("scope", "user.info.basic");
 
   authUrl.searchParams.set("state", state);
@@ -36,9 +29,7 @@ export function initiateTikTokOAuth(): void {
   window.location.href = authUrl.toString();
 }
 
-/**
- * Handle TikTok OAuth callback
- */
+
 export async function handleTikTokCallback(
   code: string,
   state: string
@@ -52,7 +43,7 @@ export async function handleTikTokCallback(
   sessionStorage.removeItem("tiktok_oauth_state");
 
   try {
-    // Ensure user is logged in
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -61,7 +52,6 @@ export async function handleTikTokCallback(
       return { success: false, error: "User not authenticated" };
     }
 
-    // Exchange code → token via Supabase Edge Function
     const { data, error } = await supabase.functions.invoke(
       "tiktok-oauth-callback",
       {
@@ -76,7 +66,6 @@ export async function handleTikTokCallback(
       return { success: false, error: error.message };
     }
 
-    // Save TikTok connection
     const { error: saveError } = await supabase
       .from("social_accounts")
       .upsert(
@@ -110,9 +99,7 @@ export async function handleTikTokCallback(
   }
 }
 
-/**
- * Disconnect TikTok
- */
+
 export async function disconnectTikTok(): Promise<{
   success: boolean;
   error?: string;

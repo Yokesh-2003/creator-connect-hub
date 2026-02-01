@@ -6,14 +6,13 @@ import { Link } from 'react-router-dom';
 export function Hero() {
   return (
     <section className="relative min-h-screen gradient-hero overflow-hidden">
-      {/* Animated background elements */}
+      
       <div className="absolute inset-0">
         <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Grid pattern overlay */}
       <div className="absolute inset-0 opacity-20" style={{
         backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
                           linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
@@ -21,7 +20,7 @@ export function Hero() {
       }} />
 
       <div className="container relative z-10 flex flex-col items-center justify-center min-h-screen py-20">
-        {/* Badge */}
+        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -34,7 +33,6 @@ export function Hero() {
           </span>
         </motion.div>
 
-        {/* Main heading */}
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -47,7 +45,6 @@ export function Hero() {
           </span>
         </motion.h1>
 
-        {/* Subtitle */}
         <motion.p
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -57,7 +54,6 @@ export function Hero() {
           Collaborate with hundreds of creators. Pay based on real engagement — views, impressions, and performance. Not follower count.
         </motion.p>
 
-        {/* CTA Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -77,7 +73,6 @@ export function Hero() {
           </Button>
         </motion.div>
 
-        {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -101,7 +96,6 @@ export function Hero() {
         </motion.div>
       </div>
 
-      {/* Scroll indicator */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

@@ -1,8 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-/**
- * Submit content to a campaign
- */
+
 export async function submitContent(
   campaignId: string,
   socialAccountId: string,
@@ -15,7 +13,6 @@ export async function submitContent(
       return { success: false, error: 'Not authenticated' };
     }
 
-    // Get campaign to validate
     const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
@@ -26,7 +23,6 @@ export async function submitContent(
       return { success: false, error: 'Campaign not found' };
     }
 
-    // Validate campaign is active
     const now = new Date();
     const startDate = new Date(campaign.start_date);
     const endDate = new Date(campaign.end_date);
@@ -35,7 +31,6 @@ export async function submitContent(
       return { success: false, error: 'Campaign is not currently active' };
     }
 
-    // Validate platform matches
     const { data: socialAccount } = await supabase
       .from('social_accounts')
       .select('platform')
@@ -47,7 +42,6 @@ export async function submitContent(
       return { success: false, error: 'Social account platform does not match campaign platform' };
     }
 
-    // Extract content ID from URL if possible
     let contentId: string | null = null;
     if (contentUrl.includes('tiktok.com')) {
       const match = contentUrl.match(/\/video\/(\d+)/);
@@ -57,7 +51,6 @@ export async function submitContent(
       contentId = match ? match[1] : null;
     }
 
-    // Check if user already submitted to this campaign
     const { data: existing } = await supabase
       .from('submissions')
       .select('id')
@@ -69,7 +62,6 @@ export async function submitContent(
       return { success: false, error: 'You have already submitted content to this campaign' };
     }
 
-    // Create submission
     const { data: submission, error: submissionError } = await supabase
       .from('submissions')
       .insert({
@@ -88,7 +80,6 @@ export async function submitContent(
       return { success: false, error: submissionError.message };
     }
 
-    // Create initial metrics entry
     await supabase.from('metrics').insert({
       submission_id: submission.id,
       views: 0,
@@ -104,9 +95,7 @@ export async function submitContent(
   }
 }
 
-/**
- * Get user's submissions for a campaign
- */
+
 export async function getUserSubmissions(campaignId?: string) {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return [];

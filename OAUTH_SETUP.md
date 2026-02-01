@@ -122,16 +122,12 @@ supabase secrets set LINKEDIN_REDIRECT_URI=https://yourdomain.com/auth/linkedin/
 Make sure you have Supabase CLI installed and configured:
 
 ```bash
-# Install Supabase CLI (if not already installed)
 npm install -g supabase
 
-# Login to Supabase
 supabase login
 
-# Link to your project
 supabase link --project-ref your-project-ref
 
-# Deploy functions
 supabase functions deploy tiktok-oauth-callback
 supabase functions deploy linkedin-oauth-callback
 ```

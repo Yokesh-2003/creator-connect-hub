@@ -3,11 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 const CLIENT_ID = import.meta.env.VITE_LINKEDIN_CLIENT_ID!;
 const REDIRECT_URI = import.meta.env.VITE_LINKEDIN_REDIRECT_URI!;
 
-/**
- * Start LinkedIn OAuth
- */
+
 export function initiateLinkedInOAuth() {
-  // ✅ Browser-safe UUID (fixes Vercel build)
+
   const state = window.crypto.randomUUID();
   sessionStorage.setItem("linkedin_oauth_state", state);
 
@@ -22,9 +20,7 @@ export function initiateLinkedInOAuth() {
   window.location.assign(authUrl);
 }
 
-/**
- * Handle LinkedIn OAuth callback
- */
+
 export async function handleLinkedInCallback(
   code: string,
   state: string
@@ -39,7 +35,6 @@ export async function handleLinkedInCallback(
 
   sessionStorage.removeItem("linkedin_oauth_state");
 
-  // ✅ Get session ONCE
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -51,7 +46,6 @@ export async function handleLinkedInCallback(
 
   console.log("✅ User authenticated:", session.user.id);
 
-  // ✅ Call Edge Function (auth handled there)
   const { data, error } = await supabase.functions.invoke(
     "linkedin-oauth-callback",
     {
@@ -62,13 +56,11 @@ export async function handleLinkedInCallback(
     }
   );
 
-  // ❌ Supabase throws error ONLY if non-2xx
   if (error) {
     console.error("❌ Edge Function error:", error);
     return { success: false, error: error.message };
   }
 
-  // ❌ Business error returned from backend
   if (!data?.success) {
     console.error("❌ LinkedIn connect failed:", data?.error);
     return { success: false, error: data?.error || "Connection failed" };
@@ -78,9 +70,7 @@ export async function handleLinkedInCallback(
   return { success: true };
 }
 
-/**
- * Disconnect LinkedIn
- */
+
 export async function disconnectLinkedIn() {
   const {
     data: { session },

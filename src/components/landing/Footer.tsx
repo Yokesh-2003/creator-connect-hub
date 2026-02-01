@@ -6,7 +6,7 @@ export function Footer() {
     <footer className="bg-card border-t border-border py-16">
       <div className="container">
         <div className="grid md:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
+          
           <div className="md:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl gradient-primary flex items-center justify-center">
@@ -30,7 +30,6 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Links */}
           <div>
             <h4 className="font-semibold mb-4">Creators</h4>
             <ul className="space-y-3">

@@ -21,7 +21,7 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
       <div className="container flex items-center justify-between h-16">
-        {/* Logo */}
+        
         <Link to="/" className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
             <span className="text-lg font-bold text-primary-foreground">G</span>
@@ -29,7 +29,6 @@ export function Navbar() {
           <span className="text-lg font-bold hidden sm:block">Game of Creators</span>
         </Link>
 
-        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
@@ -45,7 +44,6 @@ export function Navbar() {
           ))}
         </div>
 
-        {/* Desktop Auth */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
@@ -72,7 +70,6 @@ export function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
         <button
           className="md:hidden p-2 rounded-lg hover:bg-secondary transition-colors"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -81,7 +78,6 @@ export function Navbar() {
         </button>
       </div>
 
-      {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-16 left-0 right-0 bg-background border-b border-border p-4">
           <div className="flex flex-col gap-4">

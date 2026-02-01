@@ -2,14 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Game of Creators Design System
-   A bold, performance-driven aesthetic with teal/cyan primary and coral accents
-   Inspired by Linear's clean data-driven UI with gaming energy
-*/
 
 @layer base {
   :root {
-    /* Core brand colors - Deep teal primary with coral accent */
     --background: 210 20% 98%;
     --foreground: 220 30% 10%;
 
@@ -19,18 +14,15 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 30% 10%;
 
-    /* Primary: Deep teal/cyan - modern and trustworthy */
     --primary: 187 85% 35%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary: Soft blue-gray */
     --secondary: 210 20% 94%;
     --secondary-foreground: 220 30% 15%;
 
     --muted: 210 15% 92%;
     --muted-foreground: 215 15% 45%;
 
-    /* Accent: Vibrant coral for CTAs and highlights */
     --accent: 12 85% 60%;
     --accent-foreground: 0 0% 100%;
 
@@ -43,24 +35,20 @@
 
     --radius: 0.75rem;
 
-    /* Platform colors */
     --tiktok: 349 100% 50%;
     --linkedin: 201 100% 35%;
     --youtube: 0 100% 50%;
     --instagram: 340 75% 55%;
 
-    /* Status colors */
     --success: 142 70% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
 
-    /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(187, 85%, 35%), hsl(199, 89%, 48%));
     --gradient-accent: linear-gradient(135deg, hsl(12, 85%, 60%), hsl(25, 95%, 55%));
     --gradient-hero: linear-gradient(135deg, hsl(220, 30%, 8%), hsl(220, 25%, 15%));
     --gradient-glass: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
 
-    /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);

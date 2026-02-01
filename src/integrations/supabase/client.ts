@@ -7,8 +7,6 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 console.log("SUPABASE_URL_RUNTIME", import.meta.env.VITE_SUPABASE_URL);
 console.log("SUPABASE_KEY_RUNTIME", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(
   String(SUPABASE_URL),

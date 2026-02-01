@@ -1,8 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-/**
- * Refresh metrics for all submissions in a campaign
- */
+
 export async function refreshCampaignMetrics(campaignId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -10,7 +8,6 @@ export async function refreshCampaignMetrics(campaignId: string): Promise<{ succ
       return { success: false, error: 'Not authenticated' };
     }
 
-    // Get all submissions for this campaign
     const { data: submissions, error: subsError } = await supabase
       .from('submissions')
       .select(`
@@ -29,7 +26,6 @@ export async function refreshCampaignMetrics(campaignId: string): Promise<{ succ
       return { success: true };
     }
 
-    // Refresh metrics for each submission
     for (const submission of submissions) {
       await refreshSubmissionMetrics(submission.id);
     }
@@ -40,9 +36,7 @@ export async function refreshCampaignMetrics(campaignId: string): Promise<{ succ
   }
 }
 
-/**
- * Refresh metrics for a single submission
- */
+
 export async function refreshSubmissionMetrics(submissionId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -50,7 +44,6 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
       return { success: false, error: 'Not authenticated' };
     }
 
-    // Get submission with social account
     const { data: submission, error: subError } = await supabase
       .from('submissions')
       .select(`
@@ -65,13 +58,11 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
       return { success: false, error: 'Submission not found' };
     }
 
-    // Check if metrics are locked (campaign ended)
     const campaign = submission.campaign;
     const now = new Date();
     const endDate = new Date(campaign.end_date);
     const isLocked = now > endDate;
 
-    // Get latest metrics
     const { data: latestMetrics } = await supabase
       .from('metrics')
       .select('*')
@@ -81,10 +72,9 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
       .single();
 
     if (latestMetrics?.is_locked) {
-      return { success: true }; // Metrics already locked
+      return { success: true }; 
     }
 
-    // Fetch fresh metrics from platform API
     let metrics: {
       views: number;
       likes: number;
@@ -104,7 +94,6 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
     }
 
     if (!metrics) {
-      // If we can't fetch, use existing metrics or zeros
       metrics = latestMetrics || {
         views: 0,
         likes: 0,
@@ -114,7 +103,6 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
       };
     }
 
-    // Insert new metrics record
     const { error: metricsError } = await supabase.from('metrics').insert({
       submission_id: submissionId,
       views: metrics.views,
@@ -139,9 +127,7 @@ export async function refreshSubmissionMetrics(submissionId: string): Promise<{ 
   }
 }
 
-/**
- * Fetch metrics from TikTok API
- */
+
 async function fetchTikTokMetrics(accessToken: string, videoId: string): Promise<{
   views: number;
   likes: number;
@@ -150,7 +136,6 @@ async function fetchTikTokMetrics(accessToken: string, videoId: string): Promise
   impressions: number;
 }> {
   try {
-    // Note: TikTok API structure may vary
     const response = await fetch(`https://open.tiktokapis.com/v2/research/video/query/?fields=view_count,like_count,comment_count,share_count`, {
       method: 'POST',
       headers: {
@@ -174,7 +159,7 @@ async function fetchTikTokMetrics(accessToken: string, videoId: string): Promise
         likes: video?.like_count || 0,
         comments: video?.comment_count || 0,
         shares: video?.share_count || 0,
-        impressions: video?.view_count || 0, // Use views as impressions for TikTok
+        impressions: video?.view_count || 0, 
       };
     }
   } catch (error) {
@@ -184,9 +169,6 @@ async function fetchTikTokMetrics(accessToken: string, videoId: string): Promise
   return { views: 0, likes: 0, comments: 0, shares: 0, impressions: 0 };
 }
 
-/**
- * Fetch metrics from LinkedIn API
- */
 async function fetchLinkedInMetrics(accessToken: string, activityUrn: string): Promise<{
   views: number;
   likes: number;
@@ -195,7 +177,6 @@ async function fetchLinkedInMetrics(accessToken: string, activityUrn: string): P
   impressions: number;
 }> {
   try {
-    // LinkedIn API for post metrics
     const response = await fetch(`https://api.linkedin.com/v2/socialActions/${activityUrn}`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
