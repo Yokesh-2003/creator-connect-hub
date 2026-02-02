@@ -148,8 +148,8 @@ export default function Submit() {
 
       if (error) throw error;
 
-      submissionToast.update({ id: submissionToast.id, title: "Submission successful!", description: "Redirecting you to the dashboard." });
-      navigate(`/dashboard`);
+      submissionToast.update({ id: submissionToast.id, title: "Submission successful!", description: "Redirecting you to the campaign." });
+      navigate(`/campaigns/${campaignId}`);
 
     } catch (e: any) {
       submissionToast.update({ id: submissionToast.id, variant: "destructive", title: "Submission Failed", description: e.message || "An unexpected error occurred." });
@@ -275,7 +275,7 @@ export default function Submit() {
                     }
 
                     submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
-                    navigate(`/dashboard`);
+                    navigate(`/campaigns/${campaignId}`);
                   } catch (e: any) {
                     console.error(e);
                     submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: e.message || "Please check the URL and try again.", variant: "destructive"});
