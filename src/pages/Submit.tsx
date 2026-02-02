@@ -170,8 +170,8 @@ export default function Submit() {
   const PlatformIcon = campaign?.platform && platformIcons[campaign.platform];
   
   const formatViews = (views: number) => {
-    if (views >= 1000000) return \`\${(views / 1000000).toFixed(1)}M\`;
-    if (views >= 1000) return \`\${(views / 1000).toFixed(1)}K\`;
+    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
+    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
     return views;
   }
 
@@ -237,7 +237,7 @@ export default function Submit() {
                            type="text"
                            value={manualUrl}
                            onChange={(e) => setManualUrl(e.target.value)}
-                           placeholder={\`Enter \${campaign.platform} post URL\`\}
+                           placeholder={`Enter ${campaign.platform} post URL`}
                            className="p-2 border rounded-l-md sm:w-1/2 md:w-full"
                            />
                            <Button onClick={handleManualSubmit} className="rounded-r-md">
