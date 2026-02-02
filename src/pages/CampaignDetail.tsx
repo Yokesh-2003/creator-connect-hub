@@ -372,16 +372,19 @@ export default function CampaignDetail() {
           </div>
         </motion.div>
 
-        {/* Leaderboard */}
-        {campaign.campaign_type === 'leaderboard' && submissions.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5" />
-                Leaderboard
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* Leaderboard - below every campaign */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5" />
+              Leaderboard
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {campaign.campaign_type === 'leaderboard' ? 'Ranked by views' : 'Submissions for this campaign'}
+            </p>
+          </CardHeader>
+          <CardContent>
+            {submissions.length > 0 ? (
               <div className="space-y-3">
                 {submissions.slice(0, 10).map((submission: any, index: number) => {
                   const latestMetrics = submission.metrics?.[submission.metrics.length - 1] || {};
@@ -432,9 +435,20 @@ export default function CampaignDetail() {
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                <Trophy className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No submissions yet</p>
+                <p className="text-sm mt-1">Be the first to submit your content and appear on the leaderboard.</p>
+                {socialAccounts.length > 0 && (
+                  <Button className="mt-4" onClick={() => navigate(`/campaigns/${id}/submit`)}>
+                    Submit your content
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* All Submissions */}
         {submissions.length > 0 && (
@@ -488,20 +502,6 @@ export default function CampaignDetail() {
           </Card>
         )}
 
-        {submissions.length === 0 && (
-          <Card>
-            <CardContent className="pt-6 text-center py-12">
-              <p className="text-muted-foreground mb-4">No submissions yet. Be the first to participate!</p>
-              {socialAccounts.length === 0 ? (
-                <Button onClick={() => navigate('/dashboard')}>
-                  Connect Your {campaign.platform === 'tiktok' ? 'TikTok' : 'LinkedIn'} Account
-                </Button>
-              ) : (
-                <p className="text-sm text-muted-foreground">Use the "Submit Content" button above to participate.</p>
-              )}
-            </CardContent>
-          </Card>
-        )}
       </main>
     </div>
   );

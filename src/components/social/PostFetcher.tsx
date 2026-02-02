@@ -11,16 +11,22 @@ interface PostFetcherProps {
   platforms: Platform[];
   onSelectionChange: (selectedPosts: SocialPost[]) => void;
   maxSelection?: number;
+  /** When set, fetches real posts from this OAuth-connected account */
+  socialAccountId?: string;
 }
 
-export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5 }: PostFetcherProps) {
+export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, socialAccountId }: PostFetcherProps) {
   const { posts, isLoading, fetchPosts } = useSocialPosts();
   const [selectedPosts, setSelectedPosts] = useState<SocialPost[]>([]);
   const [activeTab, setActiveTab] = useState<Platform | 'all'>('all');
+  const platformToFetch = activeTab === 'all' ? platforms[0] : activeTab;
 
   useEffect(() => {
-    fetchPosts({ platform: activeTab === 'all' ? undefined : activeTab });
-  }, []);
+    fetchPosts({
+      platform: platformToFetch,
+      socialAccountId: socialAccountId ?? undefined,
+    });
+  }, [socialAccountId, platformToFetch]);
 
   useEffect(() => {
     onSelectionChange(selectedPosts);
@@ -44,7 +50,8 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5 }: 
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Select Content ({selectedPosts.length}/{maxSelection})</h3>
-        <Button variant="outline" size="sm" onClick={() => fetchPosts()} disabled={isLoading}>
+        <Button variant="outline" size="sm" onClick={() => fetchPosts({ platform: platformToFetch, socialAccountId })}
+            disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>

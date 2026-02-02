@@ -29,6 +29,7 @@ export const SubmissionForm = ({
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [campaign, setCampaign] = useState<{ id: string; title: string; platform: string } | null>(null);
+  const [campaignsList, setCampaignsList] = useState<{ id: string; title: string; platform: string }[]>([]);
   const [socialAccounts, setSocialAccounts] = useState<{ id: string; display_name?: string; username?: string; platform: string }[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState("");
   const [selectedPost, setSelectedPost] = useState<SocialPost | null>(null);
@@ -40,37 +41,64 @@ export const SubmissionForm = ({
       navigate("/auth");
       return;
     }
-    if (id && user) {
+    if (user) {
       loadCampaignAndAccounts();
     }
   }, [id, user, authLoading, navigate]);
 
   const loadCampaignAndAccounts = async () => {
-    if (!id || !user) return;
+    if (!user) return;
     setPageLoading(true);
     try {
-      const { data: campaignData } = await supabase
-        .from("campaigns")
-        .select("id, title, platform")
-        .eq("id", id)
-        .single();
-      setCampaign(campaignData ?? null);
-
-      if (campaignData?.platform) {
-        const { data: accounts } = await supabase
-          .from("social_accounts")
-          .select("id, display_name, username, platform")
-          .eq("user_id", user.id)
-          .eq("platform", campaignData.platform)
-          .eq("is_connected", true);
-        setSocialAccounts(accounts ?? []);
-        if (accounts?.length) {
-          setSelectedAccountId(accounts[0].id);
+      if (id) {
+        const { data: campaignData } = await supabase
+          .from("campaigns")
+          .select("id, title, platform")
+          .eq("id", id)
+          .single();
+        if (campaignData) {
+          setCampaign(campaignData);
+          const { data: accounts } = await supabase
+            .from("social_accounts")
+            .select("id, display_name, username, platform")
+            .eq("user_id", user.id)
+            .eq("platform", campaignData.platform)
+            .eq("is_connected", true);
+          setSocialAccounts(accounts ?? []);
+          if (accounts?.length) setSelectedAccountId(accounts[0].id);
+          setPageLoading(false);
+          return;
         }
       }
+      // No campaign from URL or not found: load all active campaigns for selector
+      const now = new Date().toISOString();
+      const { data: campaigns } = await supabase
+        .from("campaigns")
+        .select("id, title, platform")
+        .eq("status", "active")
+        .lte("start_date", now)
+        .gte("end_date", now)
+        .order("end_date", { ascending: true });
+      setCampaignsList(campaigns ?? []);
+      setCampaign(null);
+      setSocialAccounts([]);
     } finally {
       setPageLoading(false);
     }
+  };
+
+  const selectCampaign = async (c: { id: string; title: string; platform: string }) => {
+    setCampaign(c);
+    if (!user) return;
+    const { data: accounts } = await supabase
+      .from("social_accounts")
+      .select("id, display_name, username, platform")
+      .eq("user_id", user.id)
+      .eq("platform", c.platform)
+      .eq("is_connected", true);
+    setSocialAccounts(accounts ?? []);
+    if (accounts?.length) setSelectedAccountId(accounts[0].id);
+    setSelectedPost(null);
   };
 
   const handleSelectionChange = (posts: SocialPost[]) => {
@@ -78,7 +106,8 @@ export const SubmissionForm = ({
   };
 
   const handleSubmit = async () => {
-    if (!id || !selectedAccountId || !selectedPost?.mediaUrl) {
+    const campaignId = campaign?.id;
+    if (!campaignId || !selectedAccountId || !selectedPost?.mediaUrl) {
       toast({
         title: "Select a post",
         description: "Choose one post from your account to submit.",
@@ -91,7 +120,7 @@ export const SubmissionForm = ({
     try {
       const contentType = campaign?.platform === "linkedin" ? "post" : "video";
       const result = await submitContent(
-        id,
+        campaignId,
         selectedAccountId,
         selectedPost.mediaUrl,
         contentType
@@ -104,7 +133,7 @@ export const SubmissionForm = ({
         });
         setSelectedPost(null);
         onSubmissionComplete?.();
-        navigate(`/campaigns/${id}`);
+        navigate(`/campaigns/${campaignId}`);
       } else {
         toast({
           title: "Submission failed",
@@ -131,21 +160,56 @@ export const SubmissionForm = ({
     );
   }
 
+  // No campaign yet: show campaign selector (e.g. invalid id or /submit without id)
   if (!campaign) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container pt-24 pb-12 flex justify-center">
-          <Card className="max-w-md w-full">
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Campaign not found.</p>
-              <Button variant="outline" className="mt-4" onClick={() => navigate("/campaigns")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to campaigns
+        <main className="container pt-24 pb-12 max-w-4xl">
+          <Button variant="ghost" size="sm" className="mb-6 -ml-2" onClick={() => navigate("/campaigns")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to campaigns
+          </Button>
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Submit your content</CardTitle>
+              <CardDescription>
+                Choose a campaign, then pick a post from your TikTok or LinkedIn account to submit.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Label>Select a campaign</Label>
+              {campaignsList.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">
+                  No active campaigns right now. Check back later or browse campaigns.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {campaignsList.map((c) => (
+                    <Card
+                      key={c.id}
+                      className="cursor-pointer transition-colors hover:bg-muted/50"
+                      onClick={() => selectCampaign(c)}
+                    >
+                      <CardContent className="flex items-center gap-3 p-4">
+                        <div className={`rounded-lg p-2 ${c.platform === "tiktok" ? "bg-[#ff0050]/10" : "bg-[#0077b5]/10"}`}>
+                          {c.platform === "tiktok" ? <FaTiktok className="h-5 w-5 text-[#ff0050]" /> : <FaLinkedin className="h-5 w-5 text-[#0077b5]" />}
+                        </div>
+                        <div>
+                          <p className="font-medium">{c.title}</p>
+                          <p className="text-xs text-muted-foreground">{c.platform === "tiktok" ? "TikTok" : "LinkedIn"}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              <Button variant="outline" className="w-full" onClick={() => navigate("/campaigns")}>
+                View all campaigns
               </Button>
             </CardContent>
           </Card>
-        </div>
+        </main>
       </div>
     );
   }
@@ -178,7 +242,7 @@ export const SubmissionForm = ({
                 <Link2 className="h-4 w-4 mr-2" />
                 Go to Dashboard & connect
               </Button>
-              <Button variant="outline" className="w-full" onClick={() => navigate(`/campaigns/${id}`)}>
+              <Button variant="outline" className="w-full" onClick={() => navigate(`/campaigns/${campaign.id}`)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to campaign
               </Button>
@@ -197,7 +261,7 @@ export const SubmissionForm = ({
           variant="ghost"
           size="sm"
           className="mb-6 -ml-2"
-          onClick={() => navigate(`/campaigns/${id}`)}
+          onClick={() => navigate(`/campaigns/${campaign.id}`)}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to campaign
@@ -237,6 +301,7 @@ export const SubmissionForm = ({
                 platforms={[campaign.platform as "linkedin" | "tiktok"]}
                 onSelectionChange={handleSelectionChange}
                 maxSelection={1}
+                socialAccountId={selectedAccountId || undefined}
               />
             </div>
 
