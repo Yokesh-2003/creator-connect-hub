@@ -6,8 +6,19 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
-import { CheckCircle } from "lucide-react";
-import { toast } from "react-hot-toast";
+import { CheckCircle, Eye } from "lucide-react";
+import { toast, Toaster } from "react-hot-toast";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+const platformIcons: Record<string, any> = {
+  tiktok: FaTiktok,
+  linkedin: FaLinkedin,
+};
 
 export default function Submit() {
   const { id } = useParams();
@@ -81,7 +92,7 @@ export default function Submit() {
         setPosts(data.posts);
       } catch (e: any) {
         console.error("Content fetch error:", e);
-        const errorMessage = "Failed to fetch your content automatically. Please submit a URL manually.";
+        const errorMessage = "Failed to fetch your content automatically. You can submit a URL manually.";
         toast.error(errorMessage);
         setError(errorMessage);
       }
@@ -138,6 +149,7 @@ export default function Submit() {
           platform: campaign.platform,
           platform_content_id: selectedPost.id,
           content_url: selectedPost.mediaUrl,
+          thumbnail_url: selectedPost.thumbnail,
           engagement_snapshot: {
             views: selectedPost.views,
             likes: selectedPost.likes,
@@ -155,77 +167,96 @@ export default function Submit() {
     }
   };
 
-  const PlatformIcon = campaign?.platform === 'tiktok' ? FaTiktok : FaLinkedin;
+  const PlatformIcon = campaign?.platform && platformIcons[campaign.platform];
+  
+  const formatViews = (views: number) => {
+    if (views >= 1000000) return \`\${(views / 1000000).toFixed(1)}M\`;
+    if (views >= 1000) return \`\${(views / 1000).toFixed(1)}K\`;
+    return views;
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container pt-24 pb-12">
+      <Toaster position="top-center" />
+      <main className="container pt-24 pb-32">
         {loading ? (
-          <p className="text-center">Loading campaign details...</p>
+          <p className="text-center">Fetching your content...</p>
         ) : !campaign ? (
             <div className="text-center">
                 <p className="text-red-500 mb-4">{error}</p>
             </div>
         ) : (
           <>
-            <h1 className="text-3xl font-bold mb-2">Submit to {campaign.title}</h1>
-            <p className="text-lg text-muted-foreground mb-8">Select a post to submit for this campaign.</p>
+            <div className="mb-8 text-center">
+              <h1 className="text-3xl font-bold mb-2">Submit to {campaign.title}</h1>
+              <p className="text-lg text-muted-foreground">Select a post to submit for this campaign.</p>
+            </div>
             
             {posts.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {posts.map((post) => (
-                  <Card
-                    key={post.id}
-                    className={`cursor-pointer transition-all ${selectedPost?.id === post.id ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
-                    onClick={() => setSelectedPost(post)}
-                  >
-                    <CardContent className="p-4 relative">
-                      {selectedPost?.id === post.id && (
-                        <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1 z-10">
-                          <CheckCircle className="w-5 h-5" />
-                        </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {posts.map((post) => {
+                  const isSelected = selectedPost?.id === post.id;
+                  const PostPlatformIcon = platformIcons[post.platform];
+                  return (
+                    <div
+                      key={post.id}
+                      className={`relative rounded-lg overflow-hidden cursor-pointer transition-all duration-300 ${isSelected ? 'ring-4 ring-primary' : 'ring-0'}`}
+                      onClick={() => setSelectedPost(post)}
+                    >
+                      <div className="aspect-[9/16] bg-muted">
+                        <img src={post.thumbnail} alt="Post thumbnail" className="w-full h-full object-cover" />
+                      </div>
+                      {isSelected && (
+                          <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1 z-10">
+                            <CheckCircle className="w-5 h-5" />
+                          </div>
                       )}
-                      <div className="aspect-[9/16] bg-muted rounded-md mb-4 overflow-hidden">
-                        <img src={post.thumbnail} alt={post.content} className="w-full h-full object-cover" />
+                      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-black/60 to-transparent"></div>
+                       <div className="absolute top-2 left-2">
+                         {PostPlatformIcon && <PostPlatformIcon className="w-5 h-5 text-white" />}
+                       </div>
+                      <div className="absolute bottom-2 left-2 flex items-center gap-2 text-white text-sm">
+                        <Eye className="w-4 h-4"/>
+                        <span>{formatViews(post.views)}</span>
                       </div>
-                      <div className="flex items-center text-sm text-muted-foreground mb-2">
-                          <PlatformIcon className="w-4 h-4 mr-2" />
-                          <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-                      </div>
-                      <p className="font-semibold truncate text-sm">{post.content || "No caption"}</p>
-                      <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                          <span>Likes: {post.likes}</span>
-                          <span>Comments: {post.comments}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
-                <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
-                    <p className="text-muted-foreground">{error || "No eligible content was found automatically."}</p>
-                    <p className="text-muted-foreground mb-4">You can submit a public post URL manually.</p>
-                    <div className="flex justify-center mt-4">
-                        <input
-                        type="text"
-                        value={manualUrl}
-                        onChange={(e) => setManualUrl(e.target.value)}
-                        placeholder={`Enter ${campaign.platform} post URL`}
-                        className="p-2 border rounded-l-md sm:w-1/2 md:w-1/3"
-                        />
-                        <Button onClick={handleManualSubmit} className="rounded-r-md">
-                          Submit Manually
-                        </Button>
-                    </div>
+              <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                <p className="text-muted-foreground">{error || "No eligible content was found automatically."}</p>
+                 <Accordion type="single" collapsible className="w-full max-w-md mx-auto mt-4">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger>Can't find your post?</AccordionTrigger>
+                    <AccordionContent>
+                       <p className="text-muted-foreground mb-4 text-sm">You can submit a public post URL manually.</p>
+                       <div className="flex justify-center">
+                           <input
+                           type="text"
+                           value={manualUrl}
+                           onChange={(e) => setManualUrl(e.target.value)}
+                           placeholder={\`Enter \${campaign.platform} post URL\`\}
+                           className="p-2 border rounded-l-md sm:w-1/2 md:w-full"
+                           />
+                           <Button onClick={handleManualSubmit} className="rounded-r-md">
+                             Submit
+                           </Button>
+                       </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
             
-            {posts.length > 0 && (
-                <div className="mt-8 flex justify-end">
-                    <Button onClick={handleSubmit} disabled={!selectedPost} size="lg">Submit Selected Post</Button>
-                </div>
-            )}
+            <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm p-4 border-t">
+               <div className="container flex justify-end">
+                  <Button onClick={handleSubmit} disabled={!selectedPost} size="lg">
+                    Submit Selected Content
+                  </Button>
+               </div>
+            </div>
           </>
         )}
       </main>
