@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
@@ -26,39 +26,8 @@ const formatViews = (views: number) => {
   return views;
 };
 
-async function submitManualUrl(campaignId: string, postUrl: string) {
-  const { data: { session } } = await supabase.auth.getSession()
-
-  if (!session) {
-    throw new Error('Not authenticated')
-  }
-
-  const res = await fetch(
-    'https://ihpjvegabepbbjydvxfe.supabase.co/functions/v1/submit-content',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        campaign_id: campaignId,
-        post_url: postUrl,
-      }),
-    }
-  )
-
-  const json = await res.json()
-  console.log('submit-content response:', json)
-
-  if (!res.ok) {
-    throw new Error(json.error || 'Submit failed')
-  }
-
-  return json
-}
-
 export default function Submit() {
+  const supabase = createClientComponentClient();
   const { id: campaignId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -148,7 +117,7 @@ export default function Submit() {
         toast({
             variant: "destructive",
             title: "Could Not Fetch Content",
-            description: "We couldn\'t load your posts automatically. You can try submitting a URL manually.",
+            description: "We couldn't load your posts automatically. You can try submitting a URL manually.",
         });
       } finally {
         setLoading(false);
@@ -156,7 +125,7 @@ export default function Submit() {
     };
 
     fetchCampaignAndPosts();
-  }, [campaignId, navigate, toast]);
+  }, [campaignId, navigate, toast, supabase]);
 
   const handleSubmit = async () => {
     if (!selectedPost || !campaignId) {
@@ -222,7 +191,7 @@ export default function Submit() {
             )}
             <div className="absolute bottom-2 left-2 right-2 text-white text-sm">
                 <div className="flex items-center gap-2">
-                    <Eye className="w-4 h-4"/>
+                    <Eye className="w-4 h-4" />
                     <span>{formatViews(post.views)}</span>
                     {post.likes != null && (
                         <>
@@ -252,7 +221,7 @@ export default function Submit() {
           <AccordionTrigger className="text-sm">Can’t find your post?</AccordionTrigger>
           <AccordionContent>
             <p className="text-sm text-muted-foreground mb-4 text-left">
-              If your content doesn\'t appear automatically, you can submit the public URL manually.
+              If your content doesn't appear automatically, you can submit the public URL manually.
             </p>
             <div className="flex">
               <input
@@ -274,7 +243,37 @@ export default function Submit() {
                   }
                   const submissionToast = toast({ title: "Submitting your link..." });
                   try {
-                    await submitManualUrl(campaignId, manualUrl);
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (!session) {
+                      throw new Error('User not authenticated');
+                    }
+
+                    const response = await fetch(
+                      `https://ihpjvegabepbbjydvxfe.supabase.co/functions/v1/submit-content`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${session.access_token}`,
+                        },
+                        body: JSON.stringify({
+                          campaign_id: campaignId,
+                          post_url: manualUrl,
+                        }),
+                      }
+                    );
+
+                    if (!response.ok) {
+                      let errorMsg = `Request failed with status: ${response.status}`;
+                      try {
+                        const errorBody = await response.json();
+                        errorMsg = errorBody.error || errorBody.message || JSON.stringify(errorBody);
+                      } catch (e) {
+                        errorMsg = response.statusText || 'An unknown error occurred.';
+                      }
+                      throw new Error(errorMsg);
+                    }
+
                     submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
                     navigate(`/dashboard`);
                   } catch (e: any) {
