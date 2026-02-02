@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createClientComponentClient } from "@supabase/auth-helpers-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
@@ -82,7 +82,7 @@ export default function Submit() {
         .eq('user_id', session.user.id)
         .eq('platform', campaignData.platform);
 
-      if (accountsError || !socialAccounts || socialAccounts.length === 0) {
+      if (accountsError || !socialAccounts || !socialAccounts.length) {
         const errorMessage = `Please connect your ${campaignData.platform} account to submit content automatically.`;
         toast({ title: "Account Not Connected", description: errorMessage, variant: "destructive" });
         setError(errorMessage);
