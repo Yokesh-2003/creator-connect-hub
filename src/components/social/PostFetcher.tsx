@@ -11,7 +11,6 @@ interface PostFetcherProps {
   platforms: Platform[];
   onSelectionChange: (selectedPosts: SocialPost[]) => void;
   maxSelection?: number;
-  /** When set, fetches real posts from this OAuth-connected account */
   socialAccountId?: string;
 }
 
@@ -22,11 +21,13 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
   const platformToFetch = activeTab === 'all' ? platforms[0] : activeTab;
 
   useEffect(() => {
-    fetchPosts({
-      platform: platformToFetch,
-      socialAccountId: socialAccountId ?? undefined,
-    });
-  }, [socialAccountId, platformToFetch]);
+    if (socialAccountId) {
+      fetchPosts({
+        platform: platformToFetch,
+        socialAccountId,
+      });
+    }
+  }, [socialAccountId, platformToFetch, fetchPosts]);
 
   useEffect(() => {
     onSelectionChange(selectedPosts);
@@ -44,7 +45,6 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
   const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
 
   const handleUseVideo = (post: SocialPost) => {
-    // Ensure the post has a mediaUrl before selecting
     if (!post.mediaUrl) return;
     setSelectedPosts([post]);
     onSelectionChange([post]);
@@ -52,21 +52,21 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
 
   const handleTabChange = (tab: Platform | 'all') => {
     setActiveTab(tab);
-    fetchPosts({ platform: tab === 'all' ? undefined : tab });
   };
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Select Content ({selectedPosts.length}/{maxSelection})</h3>
-        <Button variant="outline" size="sm" onClick={() => fetchPosts({ platform: platformToFetch, socialAccountId })}
-            disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        {socialAccountId && (
+          <Button variant="outline" size="sm" onClick={() => fetchPosts({ platform: platformToFetch, socialAccountId })}
+              disabled={isLoading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        )}
       </div>
 
-      {/* Platform Tabs */}
       <div className="flex gap-2">
         {['all', ...platforms].map(tab => (
           <Button
@@ -80,7 +80,6 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
         ))}
       </div>
 
-      {/* Posts Grid */}
       {isLoading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div>
       ) : (
@@ -134,7 +133,9 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
                   )}
                   <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{post.likes}</span>
-                    <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{post.comments}</span>
+                    <span className="flex items-center gap-1
+                    
+                    "><MessageCircle className="h-3 w-3" />{post.comments}</span>
                     {post.views != null && <span className="flex items-center gap-1"><Eye className="h-3 w-3" />{post.views}</span>}
                   </div>
                 </div>
@@ -144,7 +145,6 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
         </div>
       )}
 
-      {/* Inline preview modal */}
       {previewPost && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -152,8 +152,9 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
         >
           <div className="w-full max-w-3xl bg-background rounded shadow-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="relative aspect-video bg-black">
-              {previewPost.mediaUrl ? (
-                // Use native video element when a direct media URL is available
+              {previewPost.embedHtml ? (
+                <div dangerouslySetInnerHTML={{ __html: previewPost.embedHtml }} />
+              ) : previewPost.mediaUrl ? (
                 <video src={previewPost.mediaUrl} controls className="w-full h-full object-contain bg-black" />
               ) : (
                 previewPost.thumbnail && <img src={previewPost.thumbnail} className="w-full h-full object-cover" />

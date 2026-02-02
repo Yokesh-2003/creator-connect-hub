@@ -7,6 +7,7 @@ export interface SocialPost {
   content: string;
   thumbnail?: string;
   mediaUrl?: string;
+  embedHtml?: string;
   likes: number;
   comments: number;
   shares: number;
