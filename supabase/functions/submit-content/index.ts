@@ -1,87 +1,84 @@
 import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 
-interface Submission {
-  campaign_id: string;
-  post_url?: string;
-  post_id?: string;
-  social_account_id?: string;
-  content_platform?: 'tiktok' | 'linkedin';
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseClient.auth.getUser()
     if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401,
-        });
+      return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid JWT.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
     }
 
-    const {
-        campaign_id,
-        post_url,
-        post_id,
-        social_account_id,
-        content_platform,
-    }: Submission = await req.json();
+    const payload: {
+        campaign_id: string;
+        post_url?: string;
+        post_id?: string;
+        social_account_id?: string;
+        content_platform?: 'tiktok' | 'linkedin';
+    } = await req.json();
 
-    if (!campaign_id) {
-      return new Response(JSON.stringify({ error: 'campaign_id is required' }), {
+    if (!payload.campaign_id) {
+      return new Response(JSON.stringify({ error: '`campaign_id` is required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
 
-    let submissionData: Omit<any, 'id' | 'created_at' | 'updated_at' | 'creator_id'> = {
-        campaign_id,
+    let insertData;
+    
+    // Manual URL Submission Flow
+    if (payload.post_url) {
+      insertData = {
+        campaign_id: payload.campaign_id,
         creator_id: user.id,
+        post_url: payload.post_url,
         status: 'pending',
-    };
-
-    if (post_url) {
-      // Manual URL submission flow
-      submissionData = { ...submissionData, post_url };
-    } else if (post_id && social_account_id && content_platform) {
-      // OAuth content picker flow
-      submissionData = {
-        ...submissionData,
-        post_id,
-        social_account_id,
-        content_platform,
       };
-    } else {
-      return new Response(JSON.stringify({ error: 'Invalid submission payload. Provide either post_url or (post_id, social_account_id, content_platform).' }), {
+    } 
+    // OAuth Picker Submission Flow
+    else if (payload.post_id && payload.social_account_id && payload.content_platform) {
+      insertData = {
+        campaign_id: payload.campaign_id,
+        creator_id: user.id,
+        post_id: payload.post_id,
+        social_account_id: payload.social_account_id,
+        content_platform: payload.content_platform,
+        status: 'pending',
+      };
+    } 
+    // Invalid Payload
+    else {
+      return new Response(JSON.stringify({ error: 'Invalid payload. Provide either `post_url` or the set `post_id`, `social_account_id`, and `content_platform`.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
+    
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     const { data, error } = await supabaseAdmin
       .from('submissions')
-      .insert(submissionData)
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
-      console.error('Supabase insert error:', error);
-      return new Response(JSON.stringify({ error: error.message }), {
+      return new Response(JSON.stringify({ error: `Database error: ${error.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
       });
@@ -90,9 +87,10 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
-    })
+    });
+
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: `Server error: ${error.message}` }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
