@@ -5,106 +5,47 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
-  // ✅ CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    /* =======================
-       PARSE BODY
-    ======================= */
-    const { contentUrl, platform } = await req.json();
+    const { submissionId, contentUrl, platform } = await req.json();
 
-    if (!contentUrl || !platform) {
+    if (!submissionId || !contentUrl || !platform) {
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "contentUrl and platform are required",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: "submissionId, contentUrl, platform required" }),
+        { status: 400, headers: corsHeaders }
       );
     }
 
-    /* =======================
-       CREATE SUPABASE CLIENT
-       (SERVICE ROLE)
-    ======================= */
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    /* =======================
-       AUTHENTICATE USER
-    ======================= */
-    const authHeader =
-      req.headers.get("authorization") ??
-      req.headers.get("Authorization");
+    let views = 0;
+    let likes = 0;
 
-    if (!authHeader) {
-      throw new Error("Missing Authorization header");
-    }
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(authHeader);
-
-    if (userError || !user) {
-      throw new Error("Unauthorized");
-    }
-
-    /* =======================
-       GET OAUTH IDENTITY
-    ======================= */
-    const { data: authUser } =
-      await supabase.auth.admin.getUserById(user.id);
-
-    const identity = authUser?.identities?.find(
-      (i) => i.provider === platform
-    );
-
-    const accessToken = identity?.access_token ?? null;
-
-    /* =======================
-       METRICS OBJECT
-    ======================= */
-    const contentInfo = {
-      views: 0,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      contentId: null as string | null,
-    };
-
-    /* =======================
-       TIKTOK
-    ======================= */
+    /* ========= TIKTOK ========= */
     if (platform === "tiktok") {
       const match = contentUrl.match(/\/video\/(\d+)/);
-      contentInfo.contentId = match?.[1] ?? null;
+      const videoId = match?.[1];
 
-      if (accessToken && contentInfo.contentId) {
+      if (videoId) {
         const res = await fetch(
-          "https://open.tiktokapis.com/v2/video/query/?fields=view_count,like_count,comment_count,share_count",
+          "https://open.tiktokapis.com/v2/video/query/?fields=view_count,like_count",
           {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              Authorization: `Bearer ${Deno.env.get("TIKTOK_ACCESS_TOKEN")}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              filters: {
-                video_ids: [contentInfo.contentId],
-              },
+              filters: { video_ids: [videoId] },
             }),
           }
         );
@@ -112,76 +53,52 @@ serve(async (req) => {
         if (res.ok) {
           const json = await res.json();
           const video = json?.data?.videos?.[0];
-          if (video) {
-            contentInfo.views = video.view_count ?? 0;
-            contentInfo.likes = video.like_count ?? 0;
-            contentInfo.comments = video.comment_count ?? 0;
-            contentInfo.shares = video.share_count ?? 0;
-          }
+          views = video?.view_count ?? 0;
+          likes = video?.like_count ?? 0;
         }
       }
     }
 
-    /* =======================
-       LINKEDIN (LIMITED)
-    ======================= */
+    /* ========= LINKEDIN ========= */
     if (platform === "linkedin") {
       const match = contentUrl.match(/activity-(\d+)/);
-      contentInfo.contentId = match?.[1] ?? null;
+      const activityId = match?.[1];
 
-      if (accessToken && contentInfo.contentId) {
+      if (activityId) {
         const res = await fetch(
-          `https://api.linkedin.com/v2/socialActions/urn:li:activity:${contentInfo.contentId}`,
+          `https://api.linkedin.com/v2/socialActions/urn:li:activity:${activityId}`,
           {
             headers: {
-              Authorization: `Bearer ${accessToken}`,
+              Authorization: `Bearer ${Deno.env.get("LINKEDIN_ACCESS_TOKEN")}`,
             },
           }
         );
 
         if (res.ok) {
-          const data = await res.json();
-          contentInfo.likes = data.likesCount ?? 0;
-          contentInfo.comments = data.commentsCount ?? 0;
-          // LinkedIn does NOT reliably expose view count
+          const json = await res.json();
+          views = json?.viewsCount ?? 0;
+          likes = json?.likesCount ?? 0;
         }
       }
     }
 
-    /* =======================
-       ✅ UPDATE DATABASE
-    ======================= */
+    /* ========= UPDATE BY ID (FIX) ========= */
     await supabase
       .from("submissions")
       .update({
-        view_count: contentInfo.views,
-        like_count: contentInfo.likes,
-        updated_at: new Date().toISOString(),
+        view_count: views,
+        like_count: likes,
       })
-      .eq("url", contentUrl);
+      .eq("id", submissionId);
 
-    /* =======================
-       RETURN RESPONSE
-    ======================= */
     return new Response(
-      JSON.stringify({
-        success: true,
-        data: contentInfo,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ success: true, views, likes }),
+      { headers: corsHeaders }
     );
-  } catch (error) {
+  } catch (err) {
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : "Internal error",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      JSON.stringify({ error: err.message }),
+      { status: 500, headers: corsHeaders }
     );
   }
 });
