@@ -39,12 +39,35 @@ serve(async (req) => {
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) throw new Error(JSON.stringify(tokenData));
 
+    // Fetch the member profile to obtain the LinkedIn member id and name
+    const profileRes = await fetch("https://api.linkedin.com/v2/me", {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+      },
+    });
+
+    let memberId = null;
+    let displayName = null;
+    if (profileRes.ok) {
+      const profileJson = await profileRes.json();
+      memberId = profileJson.id;
+      const first = profileJson.localizedFirstName || "";
+      const last = profileJson.localizedLastName || "";
+      displayName = `${first} ${last}`.trim();
+    } else {
+      // If profile fetch fails, continue but warn in logs
+      const errText = await profileRes.text();
+      console.warn("LinkedIn profile fetch failed:", errText);
+    }
+
     await supabase.from("social_accounts").upsert(
       {
         user_id: user.id,
         platform: "linkedin",
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
+        platform_user_id: memberId,
+        display_name: displayName,
         is_connected: true,
       },
       { onConflict: "user_id,platform" }
