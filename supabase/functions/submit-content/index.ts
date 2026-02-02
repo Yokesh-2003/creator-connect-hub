@@ -1,90 +1,115 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+// supabase/functions/submit-content/index.ts
+
+import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 
-// Define the shape of the incoming request body for validation.
-interface SubmissionPayload {
+interface ManualSubmission {
   campaign_id: string;
-  social_account_id?: string;
-  post_url?: string;
-  post_id?: string;
-  content_platform?: 'tiktok' | 'linkedin';
+  post_url: string;
 }
 
+interface OAuthSubmission {
+  campaign_id: string;
+  post_id: string;
+  social_account_id: string;
+  content_platform: 'tiktok' | 'linkedin';
+}
+
+type SubmissionPayload = ManualSubmission | OAuthSubmission;
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Initialize the Admin client to safely verify the user and perform the insert.
-    // This securely bypasses RLS for the write operation, but we will embed the
-    // user's ID to enable RLS for future reads and updates by the user.
-    const supabaseAdmin = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    // 2. Authenticate the user by verifying the JWT from the Authorization header.
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Missing Authorization header')
-    }
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(
-      authHeader.replace('Bearer ', '')
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid or missing token.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 3. Parse and validate the incoming payload.
     const payload: SubmissionPayload = await req.json()
-    const { campaign_id, post_url, post_id, social_account_id, content_platform } = payload;
+    console.log('Edge Function `submit-content` received payload:', JSON.stringify(payload, null, 2));
 
+    const { campaign_id } = payload;
     if (!campaign_id) {
       return new Response(JSON.stringify({ error: '`campaign_id` is a required field.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }})
     }
-    if (!post_url && !post_id) {
-      return new Response(JSON.stringify({ error: 'Either `post_url` or `post_id` must be provided.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }})
+
+    let post_url: string | null = null;
+    let post_id: string | null = null;
+    let social_account_id: string | null = null;
+    let content_platform: 'tiktok' | 'linkedin' | null = null;
+
+    // Manual URL submission
+    if ('post_url' in payload && typeof payload.post_url === 'string') {
+      post_url = payload.post_url;
     }
 
-    // 4. Construct the final data object for insertion into the clean schema.
-    const submissionData = {
+    // OAuth submission
+    if (
+      'post_id' in payload &&
+      'social_account_id' in payload &&
+      'content_platform' in payload
+    ) {
+      post_id = payload.post_id;
+      social_account_id = payload.social_account_id;
+      content_platform = payload.content_platform;
+    }
+
+    // Validate at least one path
+    if (!post_url && !post_id) {
+      return new Response(JSON.stringify({
+        error: 'Invalid payload. Provide either post_url or post_id flow.'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const dataToInsert = {
       campaign_id,
-      creator_id: user.id, // CRITICAL: Attribute the submission to the authenticated user.
-      post_url: post_url ?? null,
-      post_id: post_id ?? null,
-      social_account_id: social_account_id ?? null,
-      content_platform: content_platform ?? null,
-      status: 'pending' // Default status
+      creator_id: user.id,
+      post_url,
+      post_id,
+      social_account_id,
+      content_platform,
+      status: 'pending',
     };
 
-    // 5. Perform the insert using the admin client.
-    const { data, error: insertError } = await supabaseAdmin
+    console.log('Normalized insert payload:', dataToInsert);
+
+    const { data, error: insertError } = await supabaseClient
       .from('submissions')
-      .insert(submissionData)
+      .insert(dataToInsert)
       .select()
       .single()
 
     if (insertError) {
-      // This will now provide a meaningful database error instead of silent failure.
-      console.error('Database Insert Error:', insertError);
+      console.error('Supabase Insert Error:', insertError);
       return new Response(JSON.stringify({ error: `Database error: ${insertError.message}` }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    // 6. Return the newly created submission record.
     return new Response(JSON.stringify(data), {
-      status: 201, // 201 Created
+      status: 201,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (e) {
+    console.error('An unexpected error occurred:', e);
     return new Response(JSON.stringify({ error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
