@@ -1,21 +1,17 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { serve } from "https/deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { corsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "Missing or invalid authorization" }),
+        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -45,7 +41,7 @@ serve(async (req) => {
 
     const { data: account, error: accountError } = await supabase
       .from("social_accounts")
-      .select("id, access_token, display_name, username, platform, user_id")
+      .select("id, access_token, display_name, username, platform, user_id, platform_user_id")
       .eq("id", socialAccountId)
       .eq("user_id", user.id)
       .eq("is_connected", true)

@@ -15,7 +15,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
-import { SubmissionForm } from "./pages/SubmissionForm";
+import Submission from "./pages/Submission";
 
 const queryClient = new QueryClient();
 
@@ -42,15 +42,8 @@ const App = () => (
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/campaigns/:id" element={<CampaignDetail />} />
 
-            {/* ✅ SUBMISSION PAGE */}
-            <Route
-              path="/campaigns/:id/submit"
-              element={
-                <div className="min-h-screen bg-background flex items-center justify-center pt-24">
-                  <SubmissionForm />
-                </div>
-              }
-            />
+            {/* Submission Page */}
+            <Route path="/campaigns/:campaignId" element={<Submission />} />
 
             <Route path="/leaderboard" element={<Leaderboard />} />
 
