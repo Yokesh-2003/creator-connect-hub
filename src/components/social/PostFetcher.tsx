@@ -41,6 +41,15 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
     });
   };
 
+  const [previewPost, setPreviewPost] = useState<SocialPost | null>(null);
+
+  const handleUseVideo = (post: SocialPost) => {
+    // Ensure the post has a mediaUrl before selecting
+    if (!post.mediaUrl) return;
+    setSelectedPosts([post]);
+    onSelectionChange([post]);
+  };
+
   const handleTabChange = (tab: Platform | 'all') => {
     setActiveTab(tab);
     fetchPosts({ platform: tab === 'all' ? undefined : tab });
@@ -88,7 +97,13 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
                   {post.thumbnail && <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />}
                   {post.type === 'video' && (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Play className="h-10 w-10 text-white drop-shadow-lg" />
+                      <button
+                        className="p-2 rounded-full bg-black/50 hover:bg-black/60"
+                        onClick={(e) => { e.stopPropagation(); setPreviewPost(post); }}
+                        aria-label="Play preview"
+                      >
+                        <Play className="h-8 w-8 text-white drop-shadow-lg" />
+                      </button>
                     </div>
                   )}
                   <Badge className="absolute top-2 left-2">{post.platform}</Badge>
@@ -98,6 +113,25 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
                 </div>
                 <div className="p-3">
                   <p className="text-sm line-clamp-2">{post.content}</p>
+                  {post.mediaUrl && (
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <a
+                        href={post.mediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary underline hover:text-primary/80"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Open video
+                      </a>
+                      <button
+                        className="ml-auto text-xs px-2 py-1 rounded bg-primary text-white hover:opacity-90"
+                        onClick={(e) => { e.stopPropagation(); handleUseVideo(post); }}
+                      >
+                        Use this video
+                      </button>
+                    </div>
+                  )}
                   <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{post.likes}</span>
                     <span className="flex items-center gap-1"><MessageCircle className="h-3 w-3" />{post.comments}</span>
@@ -107,6 +141,34 @@ export function PostFetcher({ platforms, onSelectionChange, maxSelection = 5, so
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Inline preview modal */}
+      {previewPost && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setPreviewPost(null)}
+        >
+          <div className="w-full max-w-3xl bg-background rounded shadow-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="relative aspect-video bg-black">
+              {previewPost.mediaUrl ? (
+                // Use native video element when a direct media URL is available
+                <video src={previewPost.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+              ) : (
+                previewPost.thumbnail && <img src={previewPost.thumbnail} className="w-full h-full object-cover" />
+              )}
+            </div>
+            <div className="p-3 flex items-center justify-between">
+              <div className="text-sm line-clamp-2">{previewPost.content}</div>
+              <div className="flex items-center gap-2">
+                <button className="text-sm px-3 py-1 rounded bg-primary text-white" onClick={() => { handleUseVideo(previewPost); setPreviewPost(null); }}>
+                  Use this video
+                </button>
+                <button className="text-sm px-3 py-1 rounded border" onClick={() => setPreviewPost(null)}>Close</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
