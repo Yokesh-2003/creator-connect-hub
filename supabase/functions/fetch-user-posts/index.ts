@@ -115,12 +115,107 @@ serve(async (req) => {
     }
 
     if (platform === "linkedin") {
-      // LinkedIn does not expose a simple "list my posts" API for third-party apps.
-      // Return empty; frontend can fall back to mock or manual URL.
-      return new Response(
-        JSON.stringify({ posts: [] }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      // Try to list UGC posts authored by the member
+      try {
+        const memberUrn = `urn:li:person:${account.platform_user_id}`;
+        const ugcRes = await fetch(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=${encodeURIComponent(memberUrn)}&count=50`, {
+          headers: { Authorization: `Bearer ${account.access_token}` },
+        });
+
+        let posts: any[] = [];
+        if (ugcRes.ok) {
+          const ugcJson = await ugcRes.json();
+          const elements = ugcJson.elements || [];
+          posts = elements.map((e: any) => {
+            // Try to extract id and text
+            const id = e.id || (e.media && e.media[0] && e.media[0].id) || Math.random().toString(36).slice(2);
+            const content = (e.specificContent && e.specificContent['com.linkedin.ugc.ShareContent'] && (e.specificContent['com.linkedin.ugc.ShareContent'].shareCommentary?.text)) || '';
+            const createdAt = e.created?.time ? new Date(Number(e.created.time)) : new Date();
+            // Thumbnail/media extraction (best-effort)
+            let thumbnail = undefined;
+            try {
+              const media = e.specificContent['com.linkedin.ugc.ShareContent'].media || [];
+              if (media.length && media[0].thumbnails && media[0].thumbnails.length) thumbnail = media[0].thumbnails[0].image~?.url || media[0].thumbnails[0].url;
+            } catch (err) {
+              // ignore
+            }
+            const activityUrn = e.activity || `urn:li:activity:${id}`;
+            const mediaUrl = `https://www.linkedin.com/feed/update/${String(activityUrn).replace('urn:li:activity:', 'activity-')}`;
+            return {
+              id: `li-${id}`,
+              platform: 'linkedin',
+              type: 'post',
+              content: content || 'LinkedIn post',
+              thumbnail,
+              mediaUrl,
+              likes: 0,
+              comments: 0,
+              shares: 0,
+              views: undefined,
+              createdAt,
+              author: { name: authorName, avatar: '' },
+            };
+          });
+        }
+
+        // If no posts found in UGC, try shares endpoint as fallback
+        if (!posts.length) {
+          const sharesRes = await fetch(`https://api.linkedin.com/v2/shares?q=owners&owners=${encodeURIComponent(memberUrn)}&sharesPerOwner=50`, {
+            headers: { Authorization: `Bearer ${account.access_token}` },
+          });
+          if (sharesRes.ok) {
+            const sharesJson = await sharesRes.json();
+            const elems = sharesJson.elements || [];
+            posts = elems.map((e: any) => {
+              const id = e.activity || e.id || Math.random().toString(36).slice(2);
+              const content = (e.text && e.text.text) || '';
+              const createdAt = e.created && e.created.time ? new Date(Number(e.created.time)) : new Date();
+              const activityUrn = e.activity || `urn:li:activity:${id}`;
+              const mediaUrl = `https://www.linkedin.com/feed/update/${String(activityUrn).replace('urn:li:activity:', 'activity-')}`;
+              return {
+                id: `li-${id}`,
+                platform: 'linkedin',
+                type: 'post',
+                content: content || 'LinkedIn post',
+                thumbnail: undefined,
+                mediaUrl,
+                likes: 0,
+                comments: 0,
+                shares: 0,
+                views: undefined,
+                createdAt,
+                author: { name: authorName, avatar: '' },
+              };
+            });
+          }
+        }
+
+        // Try to enrich metrics for each post via socialActions when possible (best-effort)
+        for (const p of posts) {
+          try {
+            // derive urn from mediaUrl
+            const possibleUrn = p.mediaUrl && p.mediaUrl.includes('activity-') ? `urn:li:activity:${p.mediaUrl.split('activity-').pop()}` : null;
+            if (possibleUrn) {
+              const saRes = await fetch(`https://api.linkedin.com/v2/socialActions/${encodeURIComponent(possibleUrn)}`, {
+                headers: { Authorization: `Bearer ${account.access_token}` },
+              });
+              if (saRes.ok) {
+                const sa = await saRes.json();
+                p.likes = sa['totalSocialActivityCounts']?.likeCount ?? sa['likeCount'] ?? 0;
+                p.comments = sa['totalSocialActivityCounts']?.commentCount ?? sa['commentCount'] ?? 0;
+                p.shares = sa['totalSocialActivityCounts']?.shareCount ?? sa['shareCount'] ?? 0;
+              }
+            }
+          } catch (err) {
+            // ignore enrichment errors
+          }
+        }
+
+        return new Response(JSON.stringify({ posts }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      } catch (err) {
+        console.error('LinkedIn fetch error:', err);
+        return new Response(JSON.stringify({ posts: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
     return new Response(

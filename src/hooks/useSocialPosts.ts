@@ -17,9 +17,11 @@ export function useSocialPosts() {
 
       // Fetch real posts from user's OAuth account when account is provided
       if (platform && socialAccountId) {
+        console.debug('calling fetch-user-posts', { platform, socialAccountId });
         const { data, error: fnError } = await supabase.functions.invoke('fetch-user-posts', {
           body: { platform, socialAccountId },
         });
+        console.debug('fetch-user-posts result', { data, fnError });
 
         if (!fnError && data?.posts && Array.isArray(data.posts)) {
           const parsed = (data.posts as unknown[]).map((p: Record<string, unknown>) => ({
