@@ -7,13 +7,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
+    // 1. Create a Supabase client with the user's auth token
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    const { data: { user } } = await supabaseClient.auth.getUser()
+    // 2. Get the user from the token
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid JWT.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -21,7 +23,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    const payload: {
+    // 3. Get the payload from the request
+    const {
+        campaign_id,
+        post_url,
+        post_id,
+        social_account_id,
+        content_platform
+    }: {
         campaign_id: string;
         post_url?: string;
         post_id?: string;
@@ -29,61 +38,45 @@ Deno.serve(async (req) => {
         content_platform?: 'tiktok' | 'linkedin';
     } = await req.json();
 
-    if (!payload.campaign_id) {
+    // 4. Validate the payload
+    if (!campaign_id) {
       return new Response(JSON.stringify({ error: '`campaign_id` is required.' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
-
-    let insertData;
-    
-    // Manual URL Submission Flow
-    if (payload.post_url) {
-      insertData = {
-        campaign_id: payload.campaign_id,
-        creator_id: user.id,
-        post_url: payload.post_url,
-        status: 'pending',
-      };
-    } 
-    // OAuth Picker Submission Flow
-    else if (payload.post_id && payload.social_account_id && payload.content_platform) {
-      insertData = {
-        campaign_id: payload.campaign_id,
-        creator_id: user.id,
-        post_id: payload.post_id,
-        social_account_id: payload.social_account_id,
-        content_platform: payload.content_platform,
-        status: 'pending',
-      };
-    } 
-    // Invalid Payload
-    else {
-      return new Response(JSON.stringify({ error: 'Invalid payload. Provide either `post_url` or the set `post_id`, `social_account_id`, and `content_platform`.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
+    if (!post_url && !post_id) {
+        return new Response(JSON.stringify({ error: 'Invalid payload. Provide either `post_url` or `post_id`.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        });
     }
-    
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
-    const { data, error } = await supabaseAdmin
+    // 5. Perform the insert using the user-authenticated client to respect RLS
+    const { data, error } = await supabase
       .from('submissions')
-      .insert(insertData)
+      .insert({
+        campaign_id,
+        creator_id: user.id, // RLS policy `auth.uid() = creator_id` will now pass
+        post_url: post_url ?? null,
+        post_id: post_id ?? null,
+        social_account_id: social_account_id ?? null,
+        content_platform: content_platform ?? null,
+        status: 'pending',
+      })
       .select()
       .single();
 
+    // 6. Handle potential errors
     if (error) {
+      console.error('RLS-aware insert failed:', error);
       return new Response(JSON.stringify({ error: `Database error: ${error.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status: 500, // Using 500 for DB errors
       });
     }
 
+    // 7. Return the successful response
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,

@@ -3,55 +3,90 @@ import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth-context";
 import CreatorContentFetcher from "@/components/content/CreatorContentFetcher";
+import { useToast } from "@/components/ui/use-toast";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export default function Submission() {
-  const { campaignId } = useParams();
-  const { user } = useAuth();
+  const { campaignId } = useParams<{ campaignId: string }>();
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
   const [manualUrl, setManualUrl] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleSubmit = async () => {
-    if ((!selectedPost && !manualUrl) || !user || !campaignId) return;
+  const handleManualSubmit = async () => {
+    if (!manualUrl) {
+      toast({ variant: "destructive", title: "URL is empty", description: "Please provide a URL to submit." });
+      return;
+    }
+    await handleSubmit(true);
+  }
 
-    let submissionData = {
-      campaign_id: campaignId,
-      creator_id: user.id,
-      content_url: "",
-      content_platform: "",
-      post_id: "",
-    };
+  const handlePickerSubmit = async () => {
+    if (!selectedPost) {
+      toast({ variant: "destructive", title: "No post selected", description: "Please select a post to submit." });
+      return;
+    }
+    await handleSubmit(false);
+  }
 
-    if (selectedPost) {
-      submissionData.content_url = selectedPost.url;
-      submissionData.content_platform = selectedPost.platform;
-      submissionData.post_id = selectedPost.id;
-    } else {
-      submissionData.content_url = manualUrl;
-      // Basic validation for platform
-      if (manualUrl.includes("tiktok.com")) {
-        submissionData.content_platform = "tiktok";
-      } else if (manualUrl.includes("linkedin.com")) {
-        submissionData.content_platform = "linkedin";
-      } else {
-        setError("Invalid URL. Please submit a TikTok or LinkedIn URL.");
-        return;
-      }
-      // We will need to fetch the post ID from the URL on the backend
+  const handleSubmit = async (isManual: boolean) => {
+    setIsSubmitting(true);
+
+    if (!campaignId) {
+      toast({ variant: "destructive", title: "Error", description: "Campaign ID is missing." });
+      setIsSubmitting(false);
+      return;
     }
 
     try {
-      const { error } = await supabase.from("submissions").insert([submissionData]);
-      if (error) throw error;
-      // Redirect to a success page or dashboard
+      let body;
+      if (isManual) {
+        body = {
+          campaign_id: campaignId,
+          post_url: manualUrl
+        };
+      } else { // is Picker
+        body = {
+          campaign_id: campaignId,
+          post_id: selectedPost.id,
+          social_account_id: selectedPost.social_account_id,
+          content_platform: selectedPost.platform
+        };
+      }
+
+      const { error } = await supabase.functions.invoke('submit-content', {
+        body,
+      });
+
+      if (error) {
+        const errorMessage = error.context?.error_message || "An unexpected error occurred.";
+        throw new Error(errorMessage);
+      }
+
+      toast({
+        title: "Submission Successful!",
+        description: "Your content has been submitted for review.",
+      });
+      setManualUrl("");
+      setSelectedPost(null);
+
     } catch (err: any) {
-      setError(err.message);
+      toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: err.message || "Please check your input and try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -64,43 +99,44 @@ export default function Submission() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8 text-center"
         >
-          <h1 className="text-4xl font-bold mb-2">Submit Your Content</h1>
+          <h1 className="text-4xl font-bold mb-2">Submit to TikTok Dance Challenge</h1>
           <p className="text-xl text-muted-foreground">
-            Select a post to submit for this campaign, or submit a URL manually.
+            Select one of your eligible posts to submit.
           </p>
         </motion.div>
 
-        <div className="w-full max-w-4xl">
-          <Tabs defaultValue="select">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="select">Select from your content</TabsTrigger>
-              <TabsTrigger value="manual">Submit manually</TabsTrigger>
-            </TabsList>
-            <TabsContent value="select">
-              <CreatorContentFetcher onSelectPost={setSelectedPost} />
-            </TabsContent>
-            <TabsContent value="manual">
-              <div className="flex flex-col gap-4">
-                <Input
-                  type="url"
-                  placeholder="Enter TikTok or LinkedIn post URL"
-                  value={manualUrl}
-                  onChange={(e) => setManualUrl(e.target.value)}
-                />
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+        <div className="w-full max-w-4xl space-y-8">
+          <div>
+            <CreatorContentFetcher onSelectPost={setSelectedPost} selectedPost={selectedPost} />
+            <div className="mt-4 flex justify-end">
+              <Button onClick={handlePickerSubmit} disabled={isSubmitting || !selectedPost}>
+                {isSubmitting ? "Submitting..." : "Submit Selected Post"}
+              </Button>
+            </div>
+          </div>
 
-        {error && <p className="text-red-500">{error}</p>}
-
-        <div className="mt-8 w-full max-w-4xl flex justify-end">
-          <Button
-            onClick={handleSubmit}
-            disabled={(!selectedPost && !manualUrl)}
-          >
-            Submit
-          </Button>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1">
+              <AccordionTrigger>Can't find your post?</AccordionTrigger>
+              <AccordionContent>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  If your content doesn\'t appear automatically, you can submit the public URL manually.
+                </p>
+                <div className="flex w-full items-center space-x-2">
+                  <Input
+                    type="url"
+                    placeholder="https://www.linkedin.com/posts/yokesh-v-2b293527b_r"
+                    value={manualUrl}
+                    onChange={(e) => setManualUrl(e.target.value)}
+                    disabled={isSubmitting}
+                  />
+                  <Button onClick={handleManualSubmit} disabled={isSubmitting || !manualUrl}>
+                    {isSubmitting ? "..." : "Submit"}
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </main>
     </div>
