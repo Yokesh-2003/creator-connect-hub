@@ -28,13 +28,13 @@ serve(async (req) => {
       );
     }
 
-    // ✅ Create Supabase client with Service Role
+    // ✅ Supabase client (Edge Function env vars)
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ✅ Get user from Authorization header
+    // ✅ Get authenticated user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("Missing Authorization header");
@@ -49,7 +49,7 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // ✅ Fetch OAuth identities (THIS is where tokens live)
+    // ✅ Get OAuth identity (tokens live here)
     const { data: authUser } =
       await supabase.auth.admin.getUserById(user.id);
 
@@ -60,14 +60,14 @@ serve(async (req) => {
     const accessToken = identity?.access_token;
 
     let contentInfo = {
-      username: null,
-      displayName: null,
+      username: null as string | null,
+      displayName: null as string | null,
       views: 0,
       likes: 0,
       comments: 0,
       shares: 0,
-      contentId: null,
-      thumbnail: null,
+      contentId: null as string | null,
+      thumbnail: null as string | null,
     };
 
     /* =======================
@@ -77,12 +77,10 @@ serve(async (req) => {
       const match = contentUrl.match(/\/video\/(\d+)/);
       contentInfo.contentId = match?.[1] ?? null;
 
-      // 🔹 Public oEmbed (no auth)
+      // Public oEmbed (no auth)
       try {
         const oembed = await fetch(
-          `https://www.tiktok.com/oembed?url=${encodeURIComponent(
-            contentUrl
-          )}`
+          `https://www.tiktok.com/oembed?url=${encodeURIComponent(contentUrl)}`
         );
 
         if (oembed.ok) {
@@ -91,9 +89,9 @@ serve(async (req) => {
           contentInfo.displayName = data.author_name ?? null;
           contentInfo.thumbnail = data.thumbnail_url ?? null;
         }
-      } catch (_) {}
+      } catch {}
 
-      // 🔹 Private metrics (OAuth required)
+      // Private metrics (OAuth required)
       if (accessToken && contentInfo.contentId) {
         const res = await fetch(
           "https://open.tiktokapis.com/v2/video/query/?fields=view_count,like_count,comment_count,share_count",
@@ -150,6 +148,20 @@ serve(async (req) => {
       }
     }
 
+    /* =======================
+       ✅ UPDATE DATABASE HERE
+    ======================= */
+    await supabase
+      .from("submissions")
+      .update({
+        view_count: contentInfo.views,
+        like_count: contentInfo.likes,
+      })
+      .eq("url", contentUrl);
+
+    /* =======================
+       RETURN RESPONSE
+    ======================= */
     return new Response(
       JSON.stringify({ success: true, data: contentInfo }),
       {
