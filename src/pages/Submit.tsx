@@ -26,6 +26,38 @@ const formatViews = (views: number) => {
   return views;
 };
 
+async function submitManualUrl(campaignId: string, postUrl: string) {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  if (!session) {
+    throw new Error('Not authenticated')
+  }
+
+  const res = await fetch(
+    'https://ihpjvegabepbbjydvxfe.supabase.co/functions/v1/submit-content',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        campaign_id: campaignId,
+        post_url: postUrl,
+      }),
+    }
+  )
+
+  const json = await res.json()
+  console.log('submit-content response:', json)
+
+  if (!res.ok) {
+    throw new Error(json.error || 'Submit failed')
+  }
+
+  return json
+}
+
 export default function Submit() {
   const { id: campaignId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -155,22 +187,6 @@ export default function Submit() {
     }
   };
   
-  const handleManualSubmit = async () => {
-    if (!manualUrl) {
-      toast({title: "Please enter a URL.", variant: "destructive"});
-      return;
-    }
-    const submissionToast = toast({ title: "Submitting your link..." });
-    try {
-      const { error } = await supabase.functions.invoke('submit-content', { body: { campaign_id: campaignId, url: manualUrl } });
-      if (error) throw error;
-      submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
-      navigate(`/dashboard`);
-    } catch (e: any) {
-      submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: "Please check the URL and try again.", variant: "destructive"});
-    }
-  };
-
   const renderSkeletons = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {[...Array(8)].map((_, i) => (
@@ -246,7 +262,28 @@ export default function Submit() {
                 placeholder={`Enter ${campaign?.platform || 'post'} URL`}
                 className="p-2 text-sm border bg-transparent rounded-l-md w-full"
               />
-              <Button onClick={handleManualSubmit} className="rounded-l-none rounded-r-md">
+              <Button
+                onClick={async () => {
+                  if (!manualUrl) {
+                    toast({title: "Please enter a URL.", variant: "destructive"});
+                    return;
+                  }
+                  if (!campaignId) {
+                    toast({title: "Campaign not found.", variant: "destructive"});
+                    return;
+                  }
+                  const submissionToast = toast({ title: "Submitting your link..." });
+                  try {
+                    await submitManualUrl(campaignId, manualUrl);
+                    submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
+                    navigate(`/dashboard`);
+                  } catch (e: any) {
+                    console.error(e);
+                    submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: e.message || "Please check the URL and try again.", variant: "destructive"});
+                  }
+                }}
+                className="rounded-l-none rounded-r-md"
+              >
                 Submit
               </Button>
             </div>
