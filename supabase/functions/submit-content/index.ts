@@ -1,3 +1,4 @@
+
 // supabase/functions/submit-content/index.ts
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -23,15 +24,18 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Initialize the Supabase client with the SERVICE_ROLE_KEY
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
+    // Get the user from the session
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
 
     if (userError || !user) {
+      console.error('Auth Error:', userError);
       return new Response(JSON.stringify({ error: 'Unauthorized: Invalid or missing token.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -51,12 +55,19 @@ Deno.serve(async (req) => {
     let social_account_id: string | null = null;
     let content_platform: 'tiktok' | 'linkedin' | null = null;
 
-    // Manual URL submission
     if ('post_url' in payload && typeof payload.post_url === 'string') {
       post_url = payload.post_url;
+      // Basic URL validation
+      try {
+        const url = new URL(post_url);
+        if (url.protocol !== 'https' && url.protocol !== 'http:') {
+          throw new Error('Invalid protocol');
+        }
+      } catch (e) {
+        return new Response(JSON.stringify({ error: 'Invalid post_url format.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
-    // OAuth submission
     if (
       'post_id' in payload &&
       'social_account_id' in payload &&
@@ -67,10 +78,9 @@ Deno.serve(async (req) => {
       content_platform = payload.content_platform;
     }
 
-    // Validate at least one path
     if (!post_url && !post_id) {
       return new Response(JSON.stringify({
-        error: 'Invalid payload. Provide either post_url or post_id flow.'
+        error: 'Invalid payload. Provide either a valid post_url or the required fields for an OAuth submission.'
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -87,7 +97,7 @@ Deno.serve(async (req) => {
       status: 'pending',
     };
 
-    console.log('Normalized insert payload:', dataToInsert);
+    console.log('Attempting to insert normalized payload:', dataToInsert);
 
     const { data, error: insertError } = await supabaseClient
       .from('submissions')
@@ -103,14 +113,18 @@ Deno.serve(async (req) => {
       })
     }
 
+    console.log('Successfully inserted:', data);
+
     return new Response(JSON.stringify(data), {
-      status: 201,
+      status: 201, // Use 201 for resource creation
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (e) {
     console.error('An unexpected error occurred:', e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    // Sanitize the error message for the client
+    const errorMessage = e instanceof Error ? e.message : 'An internal server error occurred.';
+    return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })

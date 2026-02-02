@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createClientComponentClient } from "@supabase/auth-helpers-react";
+import { createBrowserClient } from "@supabase/ssr";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
@@ -27,7 +27,10 @@ const formatViews = (views: number) => {
 };
 
 export default function Submit() {
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    import.meta.env.VITE_SUPABASE_URL!,
+    import.meta.env.VITE_SUPABASE_ANON_KEY!
+  );
   const { id: campaignId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
