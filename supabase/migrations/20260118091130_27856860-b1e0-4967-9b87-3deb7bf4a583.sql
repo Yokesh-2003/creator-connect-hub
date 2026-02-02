@@ -88,10 +88,8 @@ CREATE TABLE public.submissions (
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Enable RLS on submissions
 ALTER TABLE public.submissions ENABLE ROW LEVEL SECURITY;
 
--- Submissions policies
 CREATE POLICY "Users can view their own submissions" ON public.submissions FOR SELECT USING (auth.uid() = creator_id);
 CREATE POLICY "Campaign owners can view all submissions" ON public.submissions FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.campaigns WHERE id = campaign_id AND brand_id = auth.uid())
@@ -99,7 +97,6 @@ CREATE POLICY "Campaign owners can view all submissions" ON public.submissions F
 CREATE POLICY "Users can create their own submissions" ON public.submissions FOR INSERT WITH CHECK (auth.uid() = creator_id);
 CREATE POLICY "Users can update their own submissions" ON public.submissions FOR UPDATE USING (auth.uid() = creator_id);
 
--- Metrics table for tracking views, likes, etc.
 CREATE TABLE public.metrics (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   submission_id UUID NOT NULL REFERENCES public.submissions(id) ON DELETE CASCADE,
@@ -115,10 +112,8 @@ CREATE TABLE public.metrics (
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Enable RLS on metrics
 ALTER TABLE public.metrics ENABLE ROW LEVEL SECURITY;
 
--- Metrics policies (viewable by submission creator and campaign owner)
 CREATE POLICY "Users can view metrics for their submissions" ON public.metrics FOR SELECT USING (
   EXISTS (SELECT 1 FROM public.submissions WHERE id = submission_id AND creator_id = auth.uid())
 );
@@ -131,7 +126,6 @@ CREATE POLICY "Campaign owners can view all metrics" ON public.metrics FOR SELEC
 );
 CREATE POLICY "System can insert metrics" ON public.metrics FOR INSERT WITH CHECK (true);
 
--- Fraud detection table
 CREATE TABLE public.fraud_flags (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   submission_id UUID NOT NULL REFERENCES public.submissions(id) ON DELETE CASCADE,
