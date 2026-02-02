@@ -32,7 +32,7 @@ serve(async (req) => {
 
     const { data: account, error: accountError } = await supabaseAdmin
       .from("social_accounts")
-      .select("access_token, platform_user_id, display_name, username")
+      .select("access_token, platform_user_id")
       .eq("id", socialAccountId)
       .eq("user_id", user.id)
       .eq("is_connected", true)
@@ -56,10 +56,9 @@ serve(async (req) => {
 
 
     let posts: any[] = [];
-    const authorName = account.display_name || account.username || "Creator";
 
     if (platform === "tiktok") {
-        const tiktokApiUrl = 'https://open.tiktokapis.com/v2/video/list/?fields=id,create_time,cover_image_url,share_url,title,like_count,comment_count,share_count,view_count';
+        const tiktokApiUrl = 'https://open.tiktokapis.com/v2/video/list/?fields=id,create_time,cover_image_url,share_url,like_count,view_count';
         
         const res = await fetch(tiktokApiUrl, {
             method: 'POST',
@@ -85,18 +84,13 @@ serve(async (req) => {
               return postDate >= campaignStartDate && postDate <= campaignEndDate;
           })
           .map((v: any) => ({
-            id: `tk-${v.id}`,
+            content_id: `tiktok_${v.id}`,
+            content_url: v.share_url,
+            thumbnail_url: v.cover_image_url,
             platform: 'tiktok',
-            type: 'video',
-            content: v.title || 'TikTok Video',
-            thumbnail: v.cover_image_url,
-            mediaUrl: v.share_url,
-            likes: v.like_count || 0,
-            comments: v.comment_count || 0,
-            shares: v.share_count || 0,
             views: v.view_count || 0,
-            createdAt: new Date(v.create_time * 1000).toISOString(),
-            author: { name: authorName, avatar: '' }
+            likes: v.like_count || 0,
+            created_at: new Date(v.create_time * 1000).toISOString(),
         }));
 
     } else if (platform === "linkedin") {
@@ -119,24 +113,19 @@ serve(async (req) => {
         posts = (json?.elements ?? [])
             .filter((p: any) => p.firstPublishedAt && new Date(p.firstPublishedAt) >= campaignStartDate && new Date(p.firstPublishedAt) <= campaignEndDate)
             .map((p: any) => ({
-                id: `li-${p.id}`,
+                content_id: `linkedin_${p.id}`,
+                content_url: `https://www.linkedin.com/feed/update/${p.id}`,
+                thumbnail_url: p.content?.share?.thumbnailUrl || p.content?.media?.thumbnails?.[0]?.url || 'https://static-exp1.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca',
                 platform: "linkedin",
-                type: "post",
-                content: p.commentary || p.shareCommentary?.text || "",
-                thumbnail: p.content?.share?.thumbnailUrl || p.content?.media?.thumbnails?.[0]?.url || 'https://static-exp1.licdn.com/sc/h/al2o9zrvru7aqj8e1x2rzsrca',
-                mediaUrl: `https://www.linkedin.com/feed/update/${p.id}`,
-                likes: 0, 
-                comments: 0,
-                shares: 0,
                 views: 0,
-                createdAt: new Date(p.firstPublishedAt).toISOString(),
-                author: { name: authorName, avatar: "" },
+                likes: 0,
+                created_at: new Date(p.firstPublishedAt).toISOString(),
         }));
     } else {
       throw new Error("Unsupported platform");
     }
 
-    return new Response(JSON.stringify({ posts }), {
+    return new Response(JSON.stringify(posts), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
