@@ -6,8 +6,7 @@ import { FaTiktok, FaLinkedin } from "react-icons/fa";
 import { Trophy, DollarSign, Calendar, Users, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { mockCampaigns } from "@/mock/campaigns"; // Import mock data
 
 const platformIcons: Record<string, any> = {
   tiktok: FaTiktok,
@@ -21,20 +20,8 @@ const platformColors: Record<string, string> = {
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchCampaigns = async () => {
-      const { data, error } = await supabase.from('campaigns').select('*');
-      if (error) {
-        console.error('Error fetching campaigns:', error);
-      } else {
-        setCampaigns(data);
-      }
-    };
-
-    fetchCampaigns();
-  }, []);
+  // Use mock data directly
+  const campaigns = mockCampaigns;
 
   return (
     <div className="min-h-screen bg-background">
@@ -74,25 +61,19 @@ export default function Campaigns() {
 
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          campaign.type === "leaderboard"
-                            ? "bg-warning/20 text-warning"
-                            : "bg-success/20 text-success"
+                          campaign.status === "active"
+                            ? "bg-success/20 text-success"
+                            : "bg-warning/20 text-warning"
                         }`}
                       >
-                        {campaign.type === "leaderboard" ? (
-                          <span className="flex items-center gap-1">
-                            <Trophy className="w-3 h-3" /> Contest
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" /> CPM
-                          </span>
-                        )}
+                        <span className="flex items-center gap-1">
+                          <Trophy className="w-3 h-3" /> Active
+                        </span>
                       </span>
                     </div>
 
                     <h3 className="text-xl font-semibold mb-2">
-                      {campaign.title}
+                      {campaign.name}
                     </h3>
                     <p className="text-muted-foreground text-sm mb-4">
                       {campaign.description}
@@ -109,15 +90,13 @@ export default function Campaigns() {
 
                       <div className="flex items-center gap-2 text-sm">
                         <Users className="w-4 h-4 text-muted-foreground" />
-                        <span>{campaign.participants} creators joined</span>
+                        <span>{campaign.target_audience}</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <DollarSign className="w-4 h-4 text-success" />
                         <span className="text-success">
-                          {campaign.type === "leaderboard"
-                            ? `$${campaign.budget} Prize Pool`
-                            : `$${campaign.cpm_rate} per 1K views`}
+                          {`$${campaign.budget} Budget`}
                         </span>
                       </div>
                     </div>

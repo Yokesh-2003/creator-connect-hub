@@ -1,0 +1,36 @@
+import { Campaign } from "@/types";
+
+export const mockCampaigns: Campaign[] = [
+  {
+    id: "1",
+    name: "TikTok Dance Challenge",
+    description: "Create a viral dance video to our new song and get a chance to be featured on our official page.",
+    brand: "Music App",
+    platform: "tiktok",
+    budget: 5000,
+    payout_per_metric: 0.1,
+    metric_type: "views",
+    goals: { engagement_rate: 0.05, impressions: 100000 },
+    target_audience: "Gen Z, Dance Enthusiasts",
+    start_date: new Date("2024-05-01"),
+    end_date: new Date("2024-05-31"),
+    status: "active",
+    brand_logo: "/logos/music-app.png",
+  },
+  {
+    id: "2",
+    name: "LinkedIn Thought Leadership",
+    description: "Share your insights on the future of AI in marketing and drive the conversation in your industry.",
+    brand: "AI SaaS Co.",
+    platform: "linkedin",
+    budget: 10000,
+    payout_per_metric: 2,
+    metric_type: "likes",
+    goals: { engagement_rate: 0.1, impressions: 50000 },
+    target_audience: "Marketing Professionals, Tech Leaders",
+    start_date: new Date("2024-05-15"),
+    end_date: new Date("2024-06-15"),
+    status: "active",
+    brand_logo: "/logos/ai-saas.png",
+  },
+];
