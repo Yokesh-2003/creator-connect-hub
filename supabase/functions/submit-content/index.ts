@@ -7,74 +7,51 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Create a Supabase client with the user's auth token
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
     )
 
-    // 2. Get the user from the token
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized: Missing or invalid JWT.' }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
     }
 
-    // 3. Get the payload from the request
-    const {
+    const body = await req.json();
+    const campaign_id = body.campaign_id;
+    const post_url = body.post_url ?? body.url; // Backward compatible
+
+    if (!campaign_id || !post_url) {
+      return new Response(JSON.stringify({ error: 'campaign_id and post_url are required.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
+    const { data, error } = await supabase
+      .from('submissions')
+      .insert({
         campaign_id,
         post_url,
-        post_id,
-        content_platform
-    }: {
-        campaign_id: string;
-        post_url?: string;
-        post_id?: string;
-        content_platform?: 'tiktok' | 'linkedin';
-    } = await req.json();
+        platform: body.platform,
+        submitter_name: user.email ?? 'unknown',
+      })
+      .select()
+      .single();
 
-    // 4. Validate the payload
-    if (!campaign_id) {
-      return new Response(JSON.stringify({ error: '`campaign_id` is required.' }), {
+    if (error) {
+      console.error('Insert failed:', error);
+      return new Response(JSON.stringify({ error: error.message }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
     }
 
-    // 5. Perform the insert using the user-authenticated client and the correct payload shape
-    const { data, error } = await supabase
-      .from('submissions')
-      .insert({
-        campaign_id,
-        post_url: post_url ?? null,
-        post_id: post_id ?? null,
-        content_platform: content_platform ?? null,
-        platform: content_platform ?? null,
-        submitter_name: user.email ?? user.id,
-      })
-      .select()
-      .single();
-
-    // 6. Handle potential errors
-    if (error) {
-      console.error('Database insert failed:', error);
-      return new Response(JSON.stringify({ error: `Database error: ${error.message}` }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      });
-    }
-
-    // 7. Return the successful response
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 201,
     });
 
-  } catch (error) {
-    return new Response(JSON.stringify({ error: `Server error: ${error.message}` }), {
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
