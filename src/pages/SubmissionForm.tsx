@@ -2,12 +2,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
-export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?: () => void }) => {
+export const SubmissionForm = ({
+  onSubmissionComplete,
+}: {
+  onSubmissionComplete?: () => void;
+}) => {
   const { toast } = useToast();
   const [url, setUrl] = useState("");
   const [submitterName, setSubmitterName] = useState("");
@@ -21,7 +31,7 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const platform = detectPlatform(url);
     if (!platform) {
       toast({
@@ -34,24 +44,35 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
 
     setIsLoading(true);
 
-    try {
-      // First, scrape metrics from the URL
-      const { data: scrapeData, error: scrapeError } = await supabase.functions.invoke("scrape-metrics", {
-        body: { url },
-      });
+    let scrapeData: { viewCount?: number; likeCount?: number } | null = null;
 
-      if (scrapeError) {
-        throw new Error(scrapeError.message);
+    try {
+      // 🔹 Try scraping metrics (optional)
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "scrape-metrics",
+          {
+            body: { url },
+          }
+        );
+
+        if (!error) {
+          scrapeData = data;
+        }
+      } catch {
+        console.warn("Scraping failed, continuing without metrics");
       }
 
-      // Insert submission with scraped metrics
-      const { error: insertError } = await supabase.from("submissions").insert({
-        content_url:url,  
-        platform,
-        submitter_name: submitterName,
-        view_count: scrapeData?.viewCount || 0,
-        like_count: scrapeData?.likeCount || 0,
-      });
+      // ✅ INSERT INTO DATABASE (CORRECT COLUMN NAMES)
+      const { error: insertError } = await supabase
+        .from("submissions")
+        .insert({
+          url, 
+          platform,
+          submitter_name: submitterName,
+          view_count: scrapeData?.viewCount ?? 0,
+          like_count: scrapeData?.likeCount ?? 0,
+        });
 
       if (insertError) {
         throw insertError;
@@ -69,7 +90,10 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
       console.error("Submission error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to submit. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -85,6 +109,7 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
           Share your LinkedIn or TikTok post to join the leaderboard
         </CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -97,6 +122,7 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="url">Post URL</Label>
             <Input
@@ -108,11 +134,12 @@ export const SubmissionForm = ({ onSubmissionComplete }: { onSubmissionComplete?
               required
             />
           </div>
+
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Scraping metrics...
+                Submitting...
               </>
             ) : (
               "Submit"
