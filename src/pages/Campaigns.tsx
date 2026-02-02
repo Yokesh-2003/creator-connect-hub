@@ -6,7 +6,8 @@ import { FaTiktok, FaLinkedin } from "react-icons/fa";
 import { Trophy, DollarSign, Calendar, Users, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
-import { mockCampaigns } from "@/mock/campaigns"; // Import mock data
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const platformIcons: Record<string, any> = {
   tiktok: FaTiktok,
@@ -20,8 +21,38 @@ const platformColors: Record<string, string> = {
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  // Use mock data directly
-  const campaigns = mockCampaigns;
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("campaigns")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching campaigns:", error);
+      } else {
+        setCampaigns(data);
+      }
+      setLoading(false);
+    };
+
+    fetchCampaigns();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="container pt-24 pb-12">
+          <p className="text-center">Loading campaigns...</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,7 +82,7 @@ export default function Campaigns() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Card className="h-full hover:border-primary/50 transition-all">
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 flex flex-col">
                     <div className="flex items-start justify-between mb-4">
                       <div
                         className={`w-12 h-12 rounded-xl bg-gradient-to-br ${platformColors[campaign.platform]} flex items-center justify-center`}
@@ -81,7 +112,7 @@ export default function Campaigns() {
                     <h3 className="text-xl font-semibold mb-2">
                       {campaign.title}
                     </h3>
-                    <p className="text-muted-foreground text-sm mb-4">
+                    <p className="text-muted-foreground text-sm mb-4 flex-grow">
                       {campaign.description}
                     </p>
 
@@ -94,11 +125,6 @@ export default function Campaigns() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 text-sm">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span>{campaign.participants} creators joined</span>
-                      </div>
-
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <DollarSign className="w-4 h-4 text-success" />
                         <span className="text-success">
@@ -109,9 +135,8 @@ export default function Campaigns() {
                       </div>
                     </div>
 
-                    {/* ✅ REDIRECT */}
                     <Button
-                      className="w-full"
+                      className="w-full mt-auto group"
                       onClick={() =>
                         navigate(`/campaigns/${campaign.id}/submit`)
                       }
