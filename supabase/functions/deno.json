@@ -1,6 +1,28 @@
 {
-  "compilerOptions": {
-    "lib": ["deno.ns", "deno.window", "dom"],
-    "strict": true
+  "functions": {
+    "fetch-creator-content": {
+      "memory": 256,
+      "timeout": 30
+    },
+    "fetch-metrics": {
+      "memory": 256,
+      "timeout": 30
+    },
+    "fetch-user-posts": {
+      "memory": 256,
+      "timeout": 30
+    },
+    "linkedin-oauth-callback": {
+      "memory": 256,
+      "timeout": 30
+    },
+    "submit-content": {
+      "memory": 256,
+      "timeout": 30
+    },
+    "tiktok-oauth-callback": {
+      "memory": 256,
+      "timeout": 30
+    }
   }
 }
