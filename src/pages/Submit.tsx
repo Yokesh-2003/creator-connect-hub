@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
@@ -27,7 +27,7 @@ const formatViews = (views: number) => {
 };
 
 export default function Submit() {
-  const supabase = createBrowserClient(
+  const supabase = createClient(
     import.meta.env.VITE_SUPABASE_URL!,
     import.meta.env.VITE_SUPABASE_ANON_KEY!
   );
@@ -40,6 +40,7 @@ export default function Submit() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [manualUrl, setManualUrl] = useState("");
+  const [socialAccount, setSocialAccount] = useState<any>(null);
 
   useEffect(() => {
     const fetchCampaignAndPosts = async () => {
@@ -81,7 +82,7 @@ export default function Submit() {
 
       const { data: socialAccounts, error: accountsError } = await supabase
         .from('social_accounts')
-        .select('id, platform')
+        .select('id, platform, user_id')
         .eq('user_id', session.user.id)
         .eq('platform', campaignData.platform);
 
@@ -92,18 +93,21 @@ export default function Submit() {
         setLoading(false);
         return;
       }
-      const socialAccount = socialAccounts[0];
+      
+      const acc = socialAccounts[0];
+      setSocialAccount(acc);
 
       try {
         const { data, error: functionError } = await supabase.functions.invoke("fetch-user-posts", {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
           body: {
             platform: campaignData.platform,
-            socialAccountId: socialAccount.id,
+            socialAccountId: acc.id,
           },
         });
         
-        console.log("Response from fetch-user-posts:", data);
-
         if (functionError) {
           throw functionError;
         }
@@ -131,7 +135,7 @@ export default function Submit() {
   }, [campaignId, navigate, toast, supabase]);
 
   const handleSubmit = async () => {
-    if (!selectedPost || !campaignId) {
+    if (!selectedPost || !campaignId || !socialAccount) {
       toast({ variant: "destructive", title: "Error", description: "Please select a post to submit." });
       return;
     }
@@ -139,13 +143,21 @@ export default function Submit() {
     const submissionToast = toast({ title: "Submitting your post..." });
 
     try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            throw new Error('User not authenticated');
+        }
+
       const { error } = await supabase.functions.invoke('submit-content', {
+        headers: {
+            Authorization: `Bearer ${session.access_token}`,
+        },
         body: {
           campaign_id: campaignId,
-          content_id: selectedPost.content_id,
-          content_url: selectedPost.content_url,
-          platform: selectedPost.platform,
-          thumbnail_url: selectedPost.thumbnail_url,
+          post_id: selectedPost.content_id,
+          post_url: selectedPost.content_url,
+          content_platform: selectedPost.platform,
+          social_account_id: socialAccount.id,
         }
       });
 
@@ -158,6 +170,48 @@ export default function Submit() {
       submissionToast.update({ id: submissionToast.id, variant: "destructive", title: "Submission Failed", description: e.message || "An unexpected error occurred." });
     }
   };
+
+  const handleManualSubmit = async () => {
+    if (!manualUrl) {
+      toast({title: "Please enter a URL.", variant: "destructive"});
+      return;
+    }
+    if (!campaignId || !campaign) {
+      toast({title: "Campaign not found.", variant: "destructive"});
+      return;
+    }
+    const submissionToast = toast({ title: "Submitting your link..." });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      const { error } = await supabase.functions.invoke('submit-content', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          campaign_id: campaignId,
+          post_url: manualUrl,
+          content_platform: campaign.platform,
+          social_account_id: socialAccount?.id,
+        },
+      });
+
+      if (error) {
+        const errorBody = JSON.parse(error.context);
+        throw new Error(errorBody?.error || error.message);
+      }
+      
+      submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
+      navigate(`/campaigns/${campaignId}`);
+    } catch (e: any) {
+      console.error(e);
+      submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: e.message || "Please check the URL and try again.", variant: "destructive"});
+    }
+  }
   
   const renderSkeletons = () => (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -235,55 +289,7 @@ export default function Submit() {
                 className="p-2 text-sm border bg-transparent rounded-l-md w-full"
               />
               <Button
-                onClick={async () => {
-                  if (!manualUrl) {
-                    toast({title: "Please enter a URL.", variant: "destructive"});
-                    return;
-                  }
-                  if (!campaignId) {
-                    toast({title: "Campaign not found.", variant: "destructive"});
-                    return;
-                  }
-                  const submissionToast = toast({ title: "Submitting your link..." });
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    if (!session) {
-                      throw new Error('User not authenticated');
-                    }
-
-                    const response = await fetch(
-                      `https://ihpjvegabepbbjydvxfe.supabase.co/functions/v1/submit-content`,
-                      {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          Authorization: `Bearer ${session.access_token}`,
-                        },
-                        body: JSON.stringify({
-                          campaign_id: campaignId,
-                          post_url: manualUrl,
-                        }),
-                      }
-                    );
-
-                    if (!response.ok) {
-                      let errorMsg = `Request failed with status: ${response.status}`;
-                      try {
-                        const errorBody = await response.json();
-                        errorMsg = errorBody.error || errorBody.message || JSON.stringify(errorBody);
-                      } catch (e) {
-                        errorMsg = response.statusText || 'An unknown error occurred.';
-                      }
-                      throw new Error(errorMsg);
-                    }
-
-                    submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
-                    navigate(`/campaigns/${campaignId}`);
-                  } catch (e: any) {
-                    console.error(e);
-                    submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: e.message || "Please check the URL and try again.", variant: "destructive"});
-                  }
-                }}
+                onClick={handleManualSubmit}
                 className="rounded-l-none rounded-r-md"
               >
                 Submit
