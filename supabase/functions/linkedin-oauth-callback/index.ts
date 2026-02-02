@@ -1,102 +1,62 @@
+// supabase/functions/linkedin-oauth-callback/index.ts
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
 serve(async (req) => {
-  // ✅ CORS preflight (MANDATORY)
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
-  }
-
   try {
-    // ✅ Robust auth header read
-    const authHeader =
-      req.headers.get("authorization") ??
-      req.headers.get("Authorization");
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader) throw new Error("Missing auth");
 
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing auth header" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
-      );
-    }
+    const { code } = await req.json();
+    if (!code) throw new Error("Missing code");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const tokenRes = await fetch(
+      "https://www.linkedin.com/oauth/v2/accessToken",
       {
-        global: {
-          headers: { Authorization: authHeader },
-        },
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code,
+          client_id: Deno.env.get("LINKEDIN_CLIENT_ID")!,
+          client_secret: Deno.env.get("LINKEDIN_CLIENT_SECRET")!,
+          redirect_uri: Deno.env.get("LINKEDIN_REDIRECT_URI")!,
+        }),
       }
     );
 
-    // ✅ Safe JSON parse
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {}
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(JSON.stringify(tokenData));
 
-    const { code } = body;
-
-    if (!code) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing code" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
-      );
-    }
-
-    // ✅ Validate user from token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid user" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
-      );
-    }
-
-    // ✅ Save LinkedIn connection
-    const { error: dbError } = await supabase
-      .from("social_accounts")
-      .upsert(
-        {
-          user_id: user.id,
-          platform: "linkedin",
-          username: "Connected",
-          is_connected: true,
-        },
-        { onConflict: "user_id,platform" }
-      );
-
-    if (dbError) {
-      return new Response(
-        JSON.stringify({ success: false, error: dbError.message }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
-      );
-    }
-
-    // ✅ SUCCESS (ONLY TRUE SUCCESS)
-    return new Response(
-      JSON.stringify({ success: true, username: "Connected" }),
-      { status: 200, headers: corsHeaders }
+    await supabase.from("social_accounts").upsert(
+      {
+        user_id: user.id,
+        platform: "linkedin",
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        is_connected: true,
+      },
+      { onConflict: "user_id,platform" }
     );
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (err) {
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: err instanceof Error ? err.message : "Unknown error",
-      }),
-      { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+      JSON.stringify({ success: false, error: err.message }),
+      { status: 500 }
     );
   }
 });

@@ -20,7 +20,7 @@ export function initiateTikTokOAuth(): void {
   authUrl.searchParams.set("redirect_uri", TIKTOK_REDIRECT_URI);
   authUrl.searchParams.set("response_type", "code");
 
-  authUrl.searchParams.set("scope", "user.info.basic");
+  authUrl.searchParams.set("scope","user.info.basic,video.list");
 
   authUrl.searchParams.set("state", state);
 
