@@ -28,13 +28,11 @@ Deno.serve(async (req) => {
         campaign_id,
         post_url,
         post_id,
-        social_account_id,
         content_platform
     }: {
         campaign_id: string;
         post_url?: string;
         post_id?: string;
-        social_account_id?: string;
         content_platform?: 'tiktok' | 'linkedin';
     } = await req.json();
 
@@ -45,34 +43,27 @@ Deno.serve(async (req) => {
         status: 400,
       });
     }
-    if (!post_url && !post_id) {
-        return new Response(JSON.stringify({ error: 'Invalid payload. Provide either `post_url` or `post_id`.' }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 400,
-        });
-    }
 
-    // 5. Perform the insert using the user-authenticated client to respect RLS
+    // 5. Perform the insert using the user-authenticated client and the correct payload shape
     const { data, error } = await supabase
       .from('submissions')
       .insert({
         campaign_id,
-        creator_id: user.id, // RLS policy `auth.uid() = creator_id` will now pass
         post_url: post_url ?? null,
         post_id: post_id ?? null,
-        social_account_id: social_account_id ?? null,
         content_platform: content_platform ?? null,
-        status: 'pending',
+        platform: content_platform ?? null,
+        submitter_name: user.email ?? user.id,
       })
       .select()
       .single();
 
     // 6. Handle potential errors
     if (error) {
-      console.error('RLS-aware insert failed:', error);
+      console.error('Database insert failed:', error);
       return new Response(JSON.stringify({ error: `Database error: ${error.message}` }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500, // Using 500 for DB errors
+        status: 500,
       });
     }
 
