@@ -26,6 +26,8 @@ export default function CampaignDetail() {
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [contentUrl, setContentUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [contentInfo, setContentInfo] = useState<any>(null);
+  const [fetchingMetrics, setFetchingMetrics] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -133,6 +135,51 @@ export default function CampaignDetail() {
       setSubmitting(false);
     }
   };
+  const handleFetchMetrics = async () => {
+  if (!contentUrl || !selectedAccount) return;
+
+  setFetchingMetrics(true);
+  setContentInfo(null);
+
+  const account = socialAccounts.find(a => a.id === selectedAccount);
+
+  const { data, error } = await supabase.functions.invoke(
+    'fetch-content-info',
+    {
+      body: {
+        contentUrl,
+        platform: campaign.platform,
+        accessToken: account?.access_token,
+      },
+    }
+  );
+
+  setFetchingMetrics(false);
+
+  if (error || !data?.success) {
+    toast({
+      title: 'Failed to fetch metrics',
+      description: 'Invalid or inaccessible content URL',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  if (
+    data.data.username &&
+    account?.username &&
+    data.data.username.toLowerCase() !== account.username.toLowerCase()
+  ) {
+    toast({
+      title: 'Ownership mismatch',
+      description: 'This content does not belong to your connected account.',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  setContentInfo(data.data);
+};
 
   const handleRefreshMetrics = async () => {
     if (!id) return;
@@ -151,6 +198,9 @@ export default function CampaignDetail() {
       setRefreshing(false);
     }
   };
+
+
+
 
   if (loading || authLoading) {
     return (

@@ -4,17 +4,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/lib/auth-context";
+
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Campaigns from "./pages/Campaigns";
-import OAuthCallback from "./pages/OAuthCallback";
 import CampaignDetail from "./pages/CampaignDetail";
+import Leaderboard from "./pages/Leaderboard";
+import OAuthCallback from "./pages/OAuthCallback";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
-import Leaderboard from "./pages/Leaderboard";
-
+import { SubmissionForm } from "./pages/SubmissionForm";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,17 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/campaigns/:id" element={<CampaignDetail />} />
+
+            {/* ✅ SUBMISSION PAGE */}
+            <Route
+              path="/campaigns/:id/submit"
+              element={
+                <div className="min-h-screen bg-background flex items-center justify-center pt-24">
+                  <SubmissionForm />
+                </div>
+              }
+            />
+
             <Route path="/leaderboard" element={<Leaderboard />} />
 
             {/* Fallback */}
@@ -52,4 +64,3 @@ const App = () => (
 );
 
 export default App;
-
