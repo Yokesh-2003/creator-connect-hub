@@ -13,6 +13,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { submitContent } from '@/lib/services/submissions';
 import { refreshCampaignMetrics } from '@/lib/services/metrics';
 import { useToast } from '@/hooks/use-toast';
+import { PostFetcher } from '@/components/social/PostFetcher';
+import type { SocialPost } from '@/types';
 import { FaTiktok, FaLinkedin } from 'react-icons/fa';
 
 export default function CampaignDetail() {
@@ -25,7 +27,16 @@ export default function CampaignDetail() {
   const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
   const [contentUrl, setContentUrl] = useState('');
+  const [selectedPosts, setSelectedPosts] = useState<SocialPost[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  // Sync content URL when user selects a post from PostFetcher
+  const handleSelectionChange = (posts: SocialPost[]) => {
+    setSelectedPosts(posts);
+    if (posts.length > 0 && posts[0].mediaUrl) {
+      setContentUrl(posts[0].mediaUrl);
+    }
+  };
   const [contentInfo, setContentInfo] = useState<any>(null);
   const [fetchingMetrics, setFetchingMetrics] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -97,10 +108,11 @@ export default function CampaignDetail() {
   };
 
   const handleSubmit = async () => {
-    if (!contentUrl.trim() || !selectedAccount || !id) {
+    const urlToSubmit = contentUrl.trim() || selectedPosts[0]?.mediaUrl?.trim();
+    if (!urlToSubmit || !selectedAccount || !id) {
       toast({
         title: 'Missing information',
-        description: 'Please enter a content URL and select an account.',
+        description: 'Please enter a content URL or select a post from your content.',
         variant: 'destructive',
       });
       return;
@@ -109,7 +121,7 @@ export default function CampaignDetail() {
     setSubmitting(true);
     try {
       const contentType = campaign?.platform === 'linkedin' ? 'post' : 'video';
-      const result = await submitContent(id, selectedAccount, contentUrl, contentType);
+      const result = await submitContent(id, selectedAccount, urlToSubmit, contentType);
 
       if (result.success) {
         toast({
@@ -117,6 +129,7 @@ export default function CampaignDetail() {
           description: 'Your content has been submitted for review.',
         });
         setContentUrl('');
+        setSelectedPosts([]);
         loadCampaign();
       } else {
         toast({
@@ -256,7 +269,7 @@ export default function CampaignDetail() {
                 <DialogTrigger asChild>
                   <Button>Submit Content</Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Submit Your Content</DialogTitle>
                   </DialogHeader>
@@ -284,6 +297,21 @@ export default function CampaignDetail() {
                         onChange={(e) => setContentUrl(e.target.value)}
                         className="mt-2"
                       />
+                    </div>
+                    <div className="border-t pt-4">
+                      <Label className="text-muted-foreground">Or select from your content</Label>
+                      <div className="mt-2">
+                        <PostFetcher
+                          platforms={[campaign.platform]}
+                          onSelectionChange={handleSelectionChange}
+                          maxSelection={1}
+                        />
+                      </div>
+                      {selectedPosts.length > 0 && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          Selected: {selectedPosts[0].content.slice(0, 50)}…
+                        </p>
+                      )}
                     </div>
                     <Button onClick={handleSubmit} disabled={submitting} className="w-full">
                       {submitting ? 'Submitting...' : 'Submit'}

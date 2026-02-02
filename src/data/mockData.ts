@@ -1,0 +1,62 @@
+import { SocialPost } from '@/types';
+
+export const mockLinkedInPosts: SocialPost[] = [
+  {
+    id: 'li-1',
+    platform: 'linkedin',
+    type: 'post',
+    content: '🚀 Excited to share my latest thoughts on AI in marketing!',
+    thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop',
+    mediaUrl: 'https://www.linkedin.com/posts/activity-1234567890',
+    likes: 234,
+    comments: 45,
+    shares: 12,
+    createdAt: new Date('2024-01-20'),
+    author: { name: 'John Doe', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100' },
+  },
+  {
+    id: 'li-2',
+    platform: 'linkedin',
+    type: 'video',
+    content: '📹 5 Tips for Growing Your LinkedIn Presence',
+    thumbnail: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=300&fit=crop',
+    mediaUrl: 'https://www.linkedin.com/posts/activity-1234567891',
+    likes: 456,
+    comments: 89,
+    shares: 45,
+    views: 12500,
+    createdAt: new Date('2024-01-15'),
+    author: { name: 'John Doe', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100' },
+  },
+];
+
+export const mockTikTokPosts: SocialPost[] = [
+  {
+    id: 'tt-1',
+    platform: 'tiktok',
+    type: 'video',
+    content: 'Day in my life as a content creator ✨ #CreatorLife',
+    thumbnail: 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=400&h=600&fit=crop',
+    mediaUrl: 'https://www.tiktok.com/@user/video/7123456789',
+    likes: 15600,
+    comments: 234,
+    shares: 89,
+    views: 125000,
+    createdAt: new Date('2024-01-22'),
+    author: { name: 'John Creates', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100' },
+  },
+  {
+    id: 'tt-2',
+    platform: 'tiktok',
+    type: 'video',
+    content: 'Testing this viral product 🔥 #TikTokMadeMeBuyIt',
+    thumbnail: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=400&h=600&fit=crop',
+    mediaUrl: 'https://www.tiktok.com/@user/video/7123456790',
+    likes: 45200,
+    comments: 567,
+    shares: 234,
+    views: 350000,
+    createdAt: new Date('2024-01-19'),
+    author: { name: 'John Creates', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100' },
+  },
+];
