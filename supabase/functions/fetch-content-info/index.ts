@@ -5,14 +5,19 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 serve(async (req) => {
+  // ✅ CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    /* =======================
+       PARSE BODY
+    ======================= */
     const { contentUrl, platform } = await req.json();
 
     if (!contentUrl || !platform) {
@@ -28,14 +33,22 @@ serve(async (req) => {
       );
     }
 
-    // ✅ Supabase client (Edge Function env vars)
+    /* =======================
+       CREATE SUPABASE CLIENT
+       (SERVICE ROLE)
+    ======================= */
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ✅ Get authenticated user
-    const authHeader = req.headers.get("Authorization");
+    /* =======================
+       AUTHENTICATE USER
+    ======================= */
+    const authHeader =
+      req.headers.get("authorization") ??
+      req.headers.get("Authorization");
+
     if (!authHeader) {
       throw new Error("Missing Authorization header");
     }
@@ -49,7 +62,9 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    // ✅ Get OAuth identity (tokens live here)
+    /* =======================
+       GET OAUTH IDENTITY
+    ======================= */
     const { data: authUser } =
       await supabase.auth.admin.getUserById(user.id);
 
@@ -57,17 +72,17 @@ serve(async (req) => {
       (i) => i.provider === platform
     );
 
-    const accessToken = identity?.access_token;
+    const accessToken = identity?.access_token ?? null;
 
-    let contentInfo = {
-      username: null as string | null,
-      displayName: null as string | null,
+    /* =======================
+       METRICS OBJECT
+    ======================= */
+    const contentInfo = {
       views: 0,
       likes: 0,
       comments: 0,
       shares: 0,
       contentId: null as string | null,
-      thumbnail: null as string | null,
     };
 
     /* =======================
@@ -77,21 +92,6 @@ serve(async (req) => {
       const match = contentUrl.match(/\/video\/(\d+)/);
       contentInfo.contentId = match?.[1] ?? null;
 
-      // Public oEmbed (no auth)
-      try {
-        const oembed = await fetch(
-          `https://www.tiktok.com/oembed?url=${encodeURIComponent(contentUrl)}`
-        );
-
-        if (oembed.ok) {
-          const data = await oembed.json();
-          contentInfo.username = data.author_name ?? null;
-          contentInfo.displayName = data.author_name ?? null;
-          contentInfo.thumbnail = data.thumbnail_url ?? null;
-        }
-      } catch {}
-
-      // Private metrics (OAuth required)
       if (accessToken && contentInfo.contentId) {
         const res = await fetch(
           "https://open.tiktokapis.com/v2/video/query/?fields=view_count,like_count,comment_count,share_count",
@@ -123,7 +123,7 @@ serve(async (req) => {
     }
 
     /* =======================
-       LINKEDIN
+       LINKEDIN (LIMITED)
     ======================= */
     if (platform === "linkedin") {
       const match = contentUrl.match(/activity-(\d+)/);
@@ -141,21 +141,22 @@ serve(async (req) => {
 
         if (res.ok) {
           const data = await res.json();
-          contentInfo.views = data.viewsCount ?? 0;
           contentInfo.likes = data.likesCount ?? 0;
           contentInfo.comments = data.commentsCount ?? 0;
+          // LinkedIn does NOT reliably expose view count
         }
       }
     }
 
     /* =======================
-       ✅ UPDATE DATABASE HERE
+       ✅ UPDATE DATABASE
     ======================= */
     await supabase
       .from("submissions")
       .update({
         view_count: contentInfo.views,
         like_count: contentInfo.likes,
+        updated_at: new Date().toISOString(),
       })
       .eq("url", contentUrl);
 
@@ -163,7 +164,10 @@ serve(async (req) => {
        RETURN RESPONSE
     ======================= */
     return new Response(
-      JSON.stringify({ success: true, data: contentInfo }),
+      JSON.stringify({
+        success: true,
+        data: contentInfo,
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
@@ -172,7 +176,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message ?? "Internal error",
+        error: error instanceof Error ? error.message : "Internal error",
       }),
       {
         status: 500,
