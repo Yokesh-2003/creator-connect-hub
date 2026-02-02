@@ -1,6 +1,6 @@
 // supabase/functions/submit-content/index.ts
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 interface ManualSubmission {
