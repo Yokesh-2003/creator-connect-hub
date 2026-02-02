@@ -1,59 +1,27 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/lib/auth-context";
+import { Route, Routes } from "react-router-dom";
+import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Dashboard from "@/pages/Dashboard";
+import Settings from "@/pages/Settings";
+import Campaigns from "@/pages/Campaigns";
+import Submit from "@/pages/Submit";
+import { AuthProvider, useAuth } from "@/integrations/supabase/auth";
+import { Toaster } from "@/components/ui/sonner";
 
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Campaigns from "./pages/Campaigns";
-import CampaignDetail from "./pages/CampaignDetail";
-import Leaderboard from "./pages/Leaderboard";
-import OAuthCallback from "./pages/OAuthCallback";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import NotFound from "./pages/NotFound";
-import Submission from "./pages/Submission";
-
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+function App() {
+  return (
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public */}
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
-
-            {/* OAuth */}
-            <Route path="/auth/tiktok/callback" element={<OAuthCallback />} />
-            <Route path="/auth/linkedin/callback" element={<OAuthCallback />} />
-
-            {/* App */}
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/campaigns" element={<Campaigns />} />
-            <Route path="/campaigns/:id" element={<CampaignDetail />} />
-
-            {/* Submission Page */}
-            <Route path="/campaigns/:campaignId" element={<Submission />} />
-
-            <Route path="/leaderboard" element={<Leaderboard />} />
-
-            {/* Fallback */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/campaigns" element={<Campaigns />} />
+        <Route path="/campaigns/:id/submit" element={<Submit />} />
+      </Routes>
+      <Toaster />
     </AuthProvider>
-  </QueryClientProvider>
-);
+  );
+}
 
 export default App;

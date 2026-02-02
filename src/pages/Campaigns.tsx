@@ -126,7 +126,7 @@ export default function Campaigns() {
                     <Button
                       className="w-full"
                       onClick={() =>
-                        navigate(`/campaigns/${campaign.id}`)
+                        navigate(`/campaigns/${campaign.id}/submit`)
                       }
                     >
                       Join Campaign

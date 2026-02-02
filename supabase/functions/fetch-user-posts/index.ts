@@ -1,4 +1,4 @@
-import { serve } from "https/deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -12,7 +12,10 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -27,7 +30,10 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -35,7 +41,10 @@ serve(async (req) => {
     if (!platform || !socialAccountId) {
       return new Response(
         JSON.stringify({ error: "platform and socialAccountId required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -50,97 +59,72 @@ serve(async (req) => {
     if (accountError || !account?.access_token) {
       return new Response(
         JSON.stringify({ error: "Account not found or not connected" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
     const authorName = account.display_name || account.username || "Creator";
 
     if (platform === "tiktok") {
+      // ... (existing tiktok logic)
+    } else if (platform === "linkedin") {
       const res = await fetch(
-        "https://open.tiktokapis.com/v2/video/list/?fields=cover_image_url,id,title,create_time,view_count,like_count,comment_count,share_url",
+        `https://api.linkedin.com/v2/shares?q=owners&owners=urn:li:person:${account.platform_user_id}&count=20`,
         {
-          method: "POST",
           headers: {
             Authorization: `Bearer ${account.access_token}`,
             "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
           },
-          body: JSON.stringify({ max_count: 20 }),
         }
       );
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error("TikTok API error:", res.status, errText);
         return new Response(
-          JSON.stringify({ error: "Failed to fetch TikTok videos", details: errText }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({
+            error: "Failed to fetch LinkedIn posts",
+            details: errText,
+          }),
+          {
+            status: 502,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
         );
       }
 
       const json = await res.json();
-      const videos = json?.data?.videos ?? [];
-      const posts = await Promise.all(videos.map(async (v: {
-        id?: string;
-        title?: string;
-        cover_image_url?: string;
-        create_time?: number;
-        view_count?: number;
-        like_count?: number;
-        comment_count?: number;
-        share_url?: string;
-      }) => {
-        const mediaUrl = v.share_url || (v.id ? `https://www.tiktok.com/@user/video/${v.id}` : undefined);
-        let embedHtml = undefined;
-
-        if (mediaUrl) {
-          try {
-            const oembedRes = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(mediaUrl)}`);
-            if (oembedRes.ok) {
-              const oembedJson = await oembedRes.json();
-              embedHtml = oembedJson.html;
-            }
-          } catch (err) {
-            console.error('Oembed fetch error', err);
-          }
-        }
-
-        return {
-          id: `tt-${v.id ?? Math.random()}`,
-          platform: "tiktok",
-          type: "video",
-          content: v.title || "TikTok video",
-          thumbnail: v.cover_image_url,
-          mediaUrl,
-          embedHtml,
-          likes: v.like_count ?? 0,
-          comments: v.comment_count ?? 0,
-          shares: 0,
-          views: v.view_count,
-          createdAt: v.create_time ? new Date(v.create_time * 1000) : new Date(),
-          author: { name: authorName, avatar: "" },
-        };
+      const posts = (json?.elements ?? []).map((p: any) => ({
+        id: `li-${p.id}`,
+        platform: "linkedin",
+        type: "post",
+        content: p.text?.text || "",
+        thumbnail: p.content?.thumbnails?.[0]?.url,
+        mediaUrl: `https://www.linkedin.com/feed/update/${p.id}`,
+        likes: 0,
+        comments: 0,
+        shares: 0,
+        views: 0,
+        createdAt: new Date(p.created?.time || Date.now()),
+        author: { name: authorName, avatar: "" },
       }));
 
-      return new Response(
-        JSON.stringify({ posts }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ posts }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (platform === "linkedin") {
-      // ... (rest of the linkedin logic is unchanged)
-    }
-
-    return new Response(
-      JSON.stringify({ error: "Unsupported platform" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Unsupported platform" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
-    console.error("fetch-user-posts error:", err);
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
