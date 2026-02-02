@@ -62,11 +62,11 @@ export default function Submission() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="container pt-24 pb-12">
+      <main className="container pt-24 pb-12 flex flex-col items-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-8 text-center"
         >
           <h1 className="text-4xl font-bold mb-2">Submit Your Content</h1>
           <p className="text-xl text-muted-foreground">
@@ -77,23 +77,25 @@ export default function Submission() {
         {loading && <p>Loading your posts...</p>}
         {error && <p className="text-red-500">{error}</p>}
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {posts.map((post) => (
-            <Card
-              key={post.id}
-              className={`cursor-pointer ${
-                selectedPost?.id === post.id ? "border-primary" : ""
-              }`}
-              onClick={() => setSelectedPost(post)}
-            >
-              <CardContent className="p-4">
-                <PostFetcher post={post} />
-              </CardContent>
-            </Card>
-          ))}
+        <div className="w-full max-w-4xl">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {posts.map((post) => (
+              <Card
+                key={post.id}
+                className={`cursor-pointer ${
+                  selectedPost?.id === post.id ? "border-primary" : ""
+                }`}
+                onClick={() => setSelectedPost(post)}
+              >
+                <CardContent className="p-4">
+                  <PostFetcher post={post} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 w-full max-w-4xl flex justify-end">
           <Button
             onClick={handleSubmit}
             disabled={!selectedPost || loading}

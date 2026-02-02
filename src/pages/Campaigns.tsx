@@ -6,42 +6,8 @@ import { FaTiktok, FaLinkedin } from "react-icons/fa";
 import { Trophy, DollarSign, Calendar, Users, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
-
-const mockCampaigns = [
-  {
-    id: "1",
-    title: "TikTok Holiday Challenge",
-    platform: "tiktok",
-    type: "leaderboard",
-    budget: 5000,
-    participants: 234,
-    startDate: "2024-12-01",
-    endDate: "2024-12-31",
-    description: "Create engaging holiday content and compete for prizes!",
-  },
-  {
-    id: "2",
-    title: "LinkedIn B2B Creator Program",
-    platform: "linkedin",
-    type: "cpm",
-    cpmRate: 12,
-    participants: 89,
-    startDate: "2024-12-15",
-    endDate: "2025-01-15",
-    description: "Share industry insights and earn $12 per 1000 impressions.",
-  },
-  {
-    id: "3",
-    title: "TikTok Product Launch",
-    platform: "tiktok",
-    type: "cpm",
-    cpmRate: 8,
-    participants: 156,
-    startDate: "2024-12-10",
-    endDate: "2025-01-10",
-    description: "Showcase our new product launch with creative videos.",
-  },
-];
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const platformIcons: Record<string, any> = {
   tiktok: FaTiktok,
@@ -55,6 +21,20 @@ const platformColors: Record<string, string> = {
 
 export default function Campaigns() {
   const navigate = useNavigate();
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      const { data, error } = await supabase.from('campaigns').select('*');
+      if (error) {
+        console.error('Error fetching campaigns:', error);
+      } else {
+        setCampaigns(data);
+      }
+    };
+
+    fetchCampaigns();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,7 +53,7 @@ export default function Campaigns() {
         </motion.div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mockCampaigns.map((campaign, index) => {
+          {campaigns.map((campaign, index) => {
             const Icon = platformIcons[campaign.platform];
 
             return (
@@ -122,8 +102,8 @@ export default function Campaigns() {
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
                         <span>
-                          {new Date(campaign.startDate).toLocaleDateString()} –{" "}
-                          {new Date(campaign.endDate).toLocaleDateString()}
+                          {new Date(campaign.start_date).toLocaleDateString()} –{" "}
+                          {new Date(campaign.end_date).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -137,7 +117,7 @@ export default function Campaigns() {
                         <span className="text-success">
                           {campaign.type === "leaderboard"
                             ? `$${campaign.budget} Prize Pool`
-                            : `$${campaign.cpmRate} per 1K views`}
+                            : `$${campaign.cpm_rate} per 1K views`}
                         </span>
                       </div>
                     </div>
