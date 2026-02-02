@@ -61,19 +61,25 @@ export default function Campaigns() {
 
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          campaign.status === "active"
-                            ? "bg-success/20 text-success"
-                            : "bg-warning/20 text-warning"
+                          campaign.type === "leaderboard"
+                            ? "bg-warning/20 text-warning"
+                            : "bg-success/20 text-success"
                         }`}
                       >
-                        <span className="flex items-center gap-1">
-                          <Trophy className="w-3 h-3" /> Active
-                        </span>
+                        {campaign.type === "leaderboard" ? (
+                          <span className="flex items-center gap-1">
+                            <Trophy className="w-3 h-3" /> Contest
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" /> CPM
+                          </span>
+                        )}
                       </span>
                     </div>
 
                     <h3 className="text-xl font-semibold mb-2">
-                      {campaign.name}
+                      {campaign.title}
                     </h3>
                     <p className="text-muted-foreground text-sm mb-4">
                       {campaign.description}
@@ -90,13 +96,15 @@ export default function Campaigns() {
 
                       <div className="flex items-center gap-2 text-sm">
                         <Users className="w-4 h-4 text-muted-foreground" />
-                        <span>{campaign.target_audience}</span>
+                        <span>{campaign.participants} creators joined</span>
                       </div>
 
                       <div className="flex items-center gap-2 text-sm font-semibold">
                         <DollarSign className="w-4 h-4 text-success" />
                         <span className="text-success">
-                          {`$${campaign.budget} Budget`}
+                          {campaign.type === "leaderboard"
+                            ? `$${campaign.budget} Prize Pool`
+                            : `$${campaign.cpm_rate} per 1K views`}
                         </span>
                       </div>
                     </div>
