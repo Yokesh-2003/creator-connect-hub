@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -5,16 +6,11 @@ import { useAuth } from '@/lib/auth-context';
 import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Trophy, Calendar, Users, DollarSign, RefreshCw, ExternalLink, Medal } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { submitContent } from '@/lib/services/submissions';
-import { refreshCampaignMetrics } from '@/lib/services/metrics';
-import { useToast } from '@/hooks/use-toast';
-import { PostFetcher } from '@/components/social/PostFetcher';
-import type { SocialPost } from '@/types';
+import { Trophy, Calendar, Users, DollarSign, ExternalLink, Medal, List } from 'lucide-react';
+import { createBrowserClient } from '@supabase/ssr';
+import { useToast } from '@/components/ui/use-toast';
 import { FaTiktok, FaLinkedin } from 'react-icons/fa';
 
 export default function CampaignDetail() {
@@ -24,196 +20,70 @@ export default function CampaignDetail() {
   const { toast } = useToast();
   const [campaign, setCampaign] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
-  const [socialAccounts, setSocialAccounts] = useState<any[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>('');
-  const [contentUrl, setContentUrl] = useState('');
-  const [selectedPosts, setSelectedPosts] = useState<SocialPost[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Sync content URL when user selects a post from PostFetcher
-  const handleSelectionChange = (posts: SocialPost[]) => {
-    setSelectedPosts(posts);
-    if (posts.length > 0 && posts[0].mediaUrl) {
-      setContentUrl(posts[0].mediaUrl);
-    }
-  };
-  const [contentInfo, setContentInfo] = useState<any>(null);
-  const [fetchingMetrics, setFetchingMetrics] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const supabase = createBrowserClient(
+    import.meta.env.VITE_SUPABASE_URL!,
+    import.meta.env.VITE_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-      return;
-    }
-
     if (id) {
       loadCampaign();
     }
-  }, [id, user, authLoading, navigate]);
+  }, [id]);
 
   const loadCampaign = async () => {
-    if (!id || !user) return;
-
+    if (!id) return;
     setLoading(true);
 
-    // Load campaign
-    const { data: campaignData } = await supabase
+    const { data: campaignData, error: campaignError } = await supabase
       .from('campaigns')
       .select('*')
       .eq('id', id)
       .single();
 
-    setCampaign(campaignData);
-
-    // Load leaderboard/submissions
-    const { data: submissionsData } = await supabase
-      .from('submissions')
-      .select(`
-        *,
-        creator:profiles!submissions_creator_id_fkey(full_name, email),
-        social_account:social_accounts(*),
-        metrics:metrics(*)
-      `)
-      .eq('campaign_id', id)
-      .eq('status', 'approved')
-      .order('submitted_at', { ascending: false });
-
-    // Sort by metrics for leaderboard
-    const sorted = (submissionsData || []).map((sub: any) => {
-      const latestMetrics = sub.metrics?.[sub.metrics.length - 1] || {};
-      const score = campaignData?.campaign_type === 'leaderboard' 
-        ? latestMetrics.views || 0 
-        : latestMetrics.impressions || 0;
-      return { ...sub, score };
-    }).sort((a: any, b: any) => b.score - a.score);
-
-    setSubmissions(sorted);
-
-    // Load user's connected accounts for this platform
-    const { data: accountsData } = await supabase
-      .from('social_accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('platform', campaignData?.platform)
-      .eq('is_connected', true);
-
-    setSocialAccounts(accountsData || []);
-    if (accountsData && accountsData.length > 0) {
-      setSelectedAccount(accountsData[0].id);
-    }
-
-    setLoading(false);
-  };
-
-  const handleSubmit = async () => {
-    const urlToSubmit = contentUrl.trim() || selectedPosts[0]?.mediaUrl?.trim();
-    if (!urlToSubmit || !selectedAccount || !id) {
-      toast({
-        title: 'Missing information',
-        description: 'Please enter a content URL or select a post from your content.',
-        variant: 'destructive',
-      });
+    if (campaignError || !campaignData) {
+      toast({ title: 'Error', description: 'Campaign not found.', variant: 'destructive' });
+      navigate('/campaigns');
       return;
     }
+    setCampaign(campaignData);
 
-    setSubmitting(true);
-    try {
-      const contentType = campaign?.platform === 'linkedin' ? 'post' : 'video';
-      const result = await submitContent(id, selectedAccount, urlToSubmit, contentType);
+    const { data: submissionsData, error: submissionsError } = await supabase
+      .from('submissions')
+      .select(`
+        id,
+        status,
+        content_url,
+        submitted_at,
+        creator:profiles(full_name, avatar_url),
+        metrics(views, likes, comments, impressions)
+      `)
+      .eq('campaign_id', id)
+      .order('submitted_at', { ascending: false });
 
-      if (result.success) {
-        toast({
-          title: 'Submission successful!',
-          description: 'Your content has been submitted for review.',
-        });
-        setContentUrl('');
-        setSelectedPosts([]);
-        loadCampaign();
-      } else {
-        toast({
-          title: 'Submission failed',
-          description: result.error || 'Failed to submit content',
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Submission failed',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
+    if (submissionsError) {
+      toast({ title: 'Error', description: 'Could not load submissions.', variant: 'destructive' });
+      setLoading(false);
+      return;
     }
+    
+    setSubmissions(submissionsData || []);
+    
+    // Separate logic for leaderboard (only approved submissions)
+    const approvedSubmissions = submissionsData?.filter(s => s.status === 'approved') || [];
+    const sortedLeaderboard = approvedSubmissions.map(sub => {
+      const score = campaignData?.campaign_type === 'leaderboard' 
+        ? sub.metrics?.[0]?.views || 0 
+        : sub.metrics?.[0]?.impressions || 0;
+      return { ...sub, score };
+    }).sort((a, b) => b.score - a.score);
+    setLeaderboard(sortedLeaderboard);
+    
+    setLoading(false);
   };
-  const handleFetchMetrics = async () => {
-  if (!contentUrl || !selectedAccount) return;
-
-  setFetchingMetrics(true);
-  setContentInfo(null);
-
-  const account = socialAccounts.find(a => a.id === selectedAccount);
-
-  const { data, error } = await supabase.functions.invoke(
-    'fetch-content-info',
-    {
-      body: {
-        contentUrl,
-        platform: campaign.platform,
-        accessToken: account?.access_token,
-      },
-    }
-  );
-
-  setFetchingMetrics(false);
-
-  if (error || !data?.success) {
-    toast({
-      title: 'Failed to fetch metrics',
-      description: 'Invalid or inaccessible content URL',
-      variant: 'destructive',
-    });
-    return;
-  }
-
-  if (
-    data.data.username &&
-    account?.username &&
-    data.data.username.toLowerCase() !== account.username.toLowerCase()
-  ) {
-    toast({
-      title: 'Ownership mismatch',
-      description: 'This content does not belong to your connected account.',
-      variant: 'destructive',
-    });
-    return;
-  }
-
-  setContentInfo(data.data);
-};
-
-  const handleRefreshMetrics = async () => {
-    if (!id) return;
-    setRefreshing(true);
-    try {
-      await refreshCampaignMetrics(id);
-      await loadCampaign();
-      toast({ title: 'Metrics refreshed', description: 'All metrics have been updated.' });
-    } catch (error) {
-      toast({
-        title: 'Refresh failed',
-        description: error instanceof Error ? error.message : 'Failed to refresh metrics',
-        variant: 'destructive',
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-
-
 
   if (loading || authLoading) {
     return (
@@ -239,19 +109,13 @@ export default function CampaignDetail() {
     );
   }
 
-  const platformIcon = campaign.platform === 'tiktok' ? FaTiktok : FaLinkedin;
-  const PlatformIcon = platformIcon;
+  const PlatformIcon = campaign.platform === 'tiktok' ? FaTiktok : FaLinkedin;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container pt-24 pb-12">
-        {/* Campaign Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -264,65 +128,10 @@ export default function CampaignDetail() {
               </div>
               <p className="text-lg text-muted-foreground mb-4">{campaign.description}</p>
             </div>
-            {socialAccounts.length > 0 && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>Submit Content</Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Submit Your Content</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Select Account</Label>
-                      <select
-                        className="w-full mt-2 px-3 py-2 border rounded-md"
-                        value={selectedAccount}
-                        onChange={(e) => setSelectedAccount(e.target.value)}
-                      >
-                        {socialAccounts.map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.display_name || account.username || account.platform}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <Label>Content URL</Label>
-                      <Input
-                        type="url"
-                        placeholder={`Paste your ${campaign.platform} content URL here`}
-                        value={contentUrl}
-                        onChange={(e) => setContentUrl(e.target.value)}
-                        className="mt-2"
-                      />
-                    </div>
-                    <div className="border-t pt-4">
-                      <Label className="text-muted-foreground">Or select from your content</Label>
-                      <div className="mt-2">
-                        <PostFetcher
-                          platforms={[campaign.platform]}
-                          onSelectionChange={handleSelectionChange}
-                          maxSelection={1}
-                        />
-                      </div>
-                      {selectedPosts.length > 0 && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Selected: {selectedPosts[0].content.slice(0, 50)}…
-                        </p>
-                      )}
-                    </div>
-                    <Button onClick={handleSubmit} disabled={submitting} className="w-full">
-                      {submitting ? 'Submitting...' : 'Submit'}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            )}
+            <Button onClick={() => navigate(`/campaigns/${id}/submit`)}>Submit Content</Button>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-6">
                 <Calendar className="w-5 h-5 text-muted-foreground mb-2" />
@@ -335,7 +144,7 @@ export default function CampaignDetail() {
             <Card>
               <CardContent className="pt-6">
                 <Users className="w-5 h-5 text-muted-foreground mb-2" />
-                <div className="text-sm text-muted-foreground">Participants</div>
+                <div className="text-sm text-muted-foreground">Total Submissions</div>
                 <div className="font-semibold">{submissions.length}</div>
               </CardContent>
             </Card>
@@ -356,38 +165,21 @@ export default function CampaignDetail() {
                 )}
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <Button
-                  variant="outline"
-                  onClick={handleRefreshMetrics}
-                  disabled={refreshing}
-                  className="w-full"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh Metrics
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </motion.div>
 
-        {/* Leaderboard - below every campaign */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="w-5 h-5" />
               Leaderboard
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {campaign.campaign_type === 'leaderboard' ? 'Ranked by views' : 'Submissions for this campaign'}
-            </p>
+            <p className="text-sm text-muted-foreground">Top performing approved submissions. Ranked by views.</p>
           </CardHeader>
           <CardContent>
-            {submissions.length > 0 ? (
+            {leaderboard.length > 0 ? (
               <div className="space-y-3">
-                {submissions.slice(0, 10).map((submission: any, index: number) => {
-                  const latestMetrics = submission.metrics?.[submission.metrics.length - 1] || {};
+                {leaderboard.slice(0, 10).map((submission: any, index: number) => {
                   const rank = index + 1;
                   return (
                     <motion.div
@@ -412,22 +204,17 @@ export default function CampaignDetail() {
                           {rank === 1 && <Medal className="w-6 h-6" />}
                           {rank !== 1 && rank}
                         </div>
+                        <Avatar>
+                          <AvatarImage src={submission.creator?.avatar_url} alt={submission.creator?.full_name} />
+                          <AvatarFallback>{submission.creator?.full_name?.charAt(0) || 'U'}</AvatarFallback>
+                        </Avatar>
                         <div className="flex-1">
                           <div className="font-semibold">{submission.creator?.full_name || 'Anonymous'}</div>
                           <div className="text-sm text-muted-foreground">
-                            {latestMetrics.views?.toLocaleString() || 0} views
+                            {submission.score.toLocaleString()} views
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold">{latestMetrics.views?.toLocaleString() || 0}</div>
-                          <div className="text-xs text-muted-foreground">views</div>
-                        </div>
-                        <a
-                          href={submission.content_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
+                        <a href={submission.content_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       </div>
@@ -438,69 +225,60 @@ export default function CampaignDetail() {
             ) : (
               <div className="py-8 text-center text-muted-foreground">
                 <Trophy className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="font-medium">No submissions yet</p>
-                <p className="text-sm mt-1">Be the first to submit your content and appear on the leaderboard.</p>
-                {socialAccounts.length > 0 && (
-                  <Button className="mt-4" onClick={() => navigate(`/campaigns/${id}/submit`)}>
-                    Submit your content
-                  </Button>
-                )}
+                <p className="font-medium">No approved submissions yet</p>
+                <p className="text-sm mt-1">Submit your content and get it approved to appear on the leaderboard.</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* All Submissions */}
-        {submissions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>All Submissions</CardTitle>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <List className="w-5 h-5" />
+              All Submissions
+            </CardTitle>
+             <p className="text-sm text-muted-foreground">All public submissions for this campaign, updated in real-time.</p>
+          </CardHeader>
+          <CardContent>
+            {submissions.length > 0 ? (
               <div className="space-y-4">
-                {submissions.map((submission: any) => {
-                  const latestMetrics = submission.metrics?.[submission.metrics.length - 1] || {};
-                  return (
-                    <div key={submission.id} className="p-4 border rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
+                {submissions.map((submission: any) => (
+                  <div key={submission.id} className="p-4 border rounded-lg bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={submission.creator?.avatar_url} alt={submission.creator?.full_name} />
+                          <AvatarFallback>{submission.creator?.full_name?.charAt(0) || 'U'}</AvatarFallback>
+                        </Avatar>
                         <div>
                           <h4 className="font-semibold">{submission.creator?.full_name || 'Anonymous'}</h4>
-                          <p className="text-sm text-muted-foreground">{submission.social_account?.username}</p>
-                        </div>
-                        <a
-                          href={submission.content_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          View <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                      <div className="grid grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <div className="text-muted-foreground">Views</div>
-                          <div className="font-semibold">{latestMetrics.views?.toLocaleString() || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Likes</div>
-                          <div className="font-semibold">{latestMetrics.likes?.toLocaleString() || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Comments</div>
-                          <div className="font-semibold">{latestMetrics.comments?.toLocaleString() || 0}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Impressions</div>
-                          <div className="font-semibold">{latestMetrics.impressions?.toLocaleString() || 0}</div>
+                          <p className="text-xs text-muted-foreground">
+                            Submitted on {new Date(submission.submitted_at).toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
+                      <a
+                        href={submission.content_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1 text-sm"
+                      >
+                        View Post <ExternalLink className="w-3 h-3" />
+                      </a>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">
+                  <List className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">No submissions yet</p>
+                  <p className="text-sm mt-1">Be the first to submit your content to this campaign.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       </main>
     </div>
