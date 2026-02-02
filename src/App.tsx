@@ -1,18 +1,18 @@
 import { Route, Routes } from "react-router-dom";
-import Landing from "@/pages/Landing";
+import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
 import Settings from "@/pages/Settings";
 import Campaigns from "@/pages/Campaigns";
 import Submit from "@/pages/Submit";
-import { AuthProvider, useAuth } from "@/integrations/supabase/auth";
+import { AuthProvider } from "@/integrations/supabase/auth";
 import { Toaster } from "@/components/ui/sonner";
 
 function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/settings" element={<Settings />} />
