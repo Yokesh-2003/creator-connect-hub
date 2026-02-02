@@ -22,82 +22,55 @@ export function CampaignTypes() {
         </motion.div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          
+
+          {/* LEADERBOARD */}
           <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative bg-card rounded-3xl p-8 border border-border overflow-hidden group hover:border-warning/50 transition-all duration-300"
+            className="relative bg-card rounded-3xl p-8 border border-border"
           >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-warning/10 rounded-full blur-3xl group-hover:bg-warning/20 transition-all" />
-            
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-warning/20 flex items-center justify-center mb-6">
-                <Trophy className="w-8 h-8 text-warning" />
-              </div>
-
-              <h3 className="text-2xl font-bold mb-3">Leaderboard Contest</h3>
-              <p className="text-muted-foreground mb-6">
-                Compete against other creators for prize pools. Top performers based on views and engagement win cash prizes.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {['Fixed prize pools', 'View-based rankings', 'Weekly/monthly contests', 'Bonus achievements'].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm">
-                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </div>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-
-              <Button variant="outline" className="w-full group/btn" asChild>
-                <Link to="/campaigns?type=leaderboard">
-                  View Contests
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
+            <div className="w-16 h-16 rounded-2xl bg-warning/20 flex items-center justify-center mb-6">
+              <Trophy className="w-8 h-8 text-warning" />
             </div>
+
+            <h3 className="text-2xl font-bold mb-3">Leaderboard Contest</h3>
+            <p className="text-muted-foreground mb-6">
+              Compete against creators. Top performers win prize pools.
+            </p>
+
+            <Button variant="outline" className="w-full" asChild>
+              <Link to="/campaigns?type=leaderboard">
+                View Contests
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
           </motion.div>
 
+          {/* CPM */}
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative bg-card rounded-3xl p-8 border border-border overflow-hidden group hover:border-success/50 transition-all duration-300"
+            className="relative bg-card rounded-3xl p-8 border border-border"
           >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-success/10 rounded-full blur-3xl group-hover:bg-success/20 transition-all" />
-            
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-success/20 flex items-center justify-center mb-6">
-                <DollarSign className="w-8 h-8 text-success" />
-              </div>
-
-              <h3 className="text-2xl font-bold mb-3">CPM Campaign</h3>
-              <p className="text-muted-foreground mb-6">
-                Get paid per 1,000 views your content generates. The more views you get, the more you earn. Simple.
-              </p>
-
-              <ul className="space-y-3 mb-8">
-                {['Earn per 1K views', 'No competition needed', 'Predictable earnings', 'Unlimited potential'].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm">
-                    <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </div>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-
-              <Button variant="default" className="w-full group/btn" asChild>
-                <Link to="/campaigns?type=cpm">
-                  View CPM Campaigns
-                  <ArrowRight className="w-4 h-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
+            <div className="w-16 h-16 rounded-2xl bg-success/20 flex items-center justify-center mb-6">
+              <DollarSign className="w-8 h-8 text-success" />
             </div>
+
+            <h3 className="text-2xl font-bold mb-3">CPM Campaign</h3>
+            <p className="text-muted-foreground mb-6">
+              Earn per 1,000 views. No competition.
+            </p>
+
+            <Button className="w-full" asChild>
+              <Link to="/campaigns?type=cpm">
+                View CPM Campaigns
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
           </motion.div>
+
         </div>
       </div>
     </section>

@@ -26,16 +26,23 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/leaderboard" element={<Leaderboard />} />
+            {/* Public */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+
+            {/* OAuth */}
             <Route path="/auth/tiktok/callback" element={<OAuthCallback />} />
             <Route path="/auth/linkedin/callback" element={<OAuthCallback />} />
+
+            {/* App */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/campaigns/:id" element={<CampaignDetail />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+
+            {/* Fallback */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
@@ -45,3 +52,4 @@ const App = () => (
 );
 
 export default App;
+
