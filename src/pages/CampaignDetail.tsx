@@ -66,6 +66,7 @@ export default function CampaignDetail() {
   
   // When new submissions are added, we want to see them immediately
   useEffect(() => {
+    if (!id) return;
     const channel = supabase
       .channel(`campaign-${id}-submissions`)
       .on(
@@ -106,7 +107,7 @@ export default function CampaignDetail() {
 
   const currentSubmission = sortedSubmissions[currentIndex];
 
-  if (loading || authLoading) {
+  if (loading || authLoading || !campaign) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <Skeleton className="w-full max-w-6xl h-[70vh]" />
