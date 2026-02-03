@@ -87,13 +87,45 @@ Deno.serve(async (req) => {
       });
     }
 
+    // For manual URL submissions, we need to find or validate the social account
+    let resolvedSocialAccountId = social_account_id;
+    
+    if (post_url && !resolvedSocialAccountId) {
+      // Determine platform from URL and find user's connected account
+      let platform: string | null = null;
+      if (post_url.includes('tiktok.com')) {
+        platform = 'tiktok';
+      } else if (post_url.includes('linkedin.com')) {
+        platform = 'linkedin';
+      }
+      
+      if (platform) {
+        const { data: socialAccount } = await supabaseClient
+          .from('social_accounts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('platform', platform)
+          .eq('is_connected', true)
+          .single();
+        
+        if (socialAccount) {
+          resolvedSocialAccountId = socialAccount.id;
+        }
+      }
+    }
+    
+    if (!resolvedSocialAccountId) {
+      return new Response(JSON.stringify({ 
+        error: 'No connected social account found. Please connect your account first.' 
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const dataToInsert = {
       campaign_id,
       creator_id: user.id,
-      post_url,
-      post_id,
-      social_account_id,
-      content_platform,
+      content_url: post_url,
+      content_id: post_id,
+      social_account_id: resolvedSocialAccountId,
       status: 'pending',
     };
 
