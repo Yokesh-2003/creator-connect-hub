@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
 import VideoPlayer from '@/components/content/VideoPlayer';
 import Leaderboard from '@/components/content/Leaderboard';
@@ -15,13 +15,6 @@ export default function CampaignDetailPage() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  const supabase = useMemo(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    ), 
-  []);
 
   const loadCampaignData = useCallback(async () => {
     if (!id) return;
