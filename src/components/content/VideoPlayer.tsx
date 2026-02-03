@@ -42,7 +42,7 @@ const SubmissionPlayer = ({ submission, isVisible }: { submission: any; isVisibl
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isVisible || !submission?.post_url) return;
+    if (!isVisible || !submission?.content_url) return;
 
     const fetchEmbed = async () => {
       setLoading(true);
@@ -51,7 +51,7 @@ const SubmissionPlayer = ({ submission, isVisible }: { submission: any; isVisibl
 
       try {
         const { data, error: functionError } = await supabase.functions.invoke('fetch-content-info', {
-          body: { url: submission.post_url },
+          body: { url: submission.content_url },
         });
 
         if (functionError) throw new Error(functionError.message);
@@ -68,7 +68,7 @@ const SubmissionPlayer = ({ submission, isVisible }: { submission: any; isVisibl
     };
 
     fetchEmbed();
-  }, [submission?.post_url, isVisible]);
+  }, [submission?.content_url, isVisible]);
 
   return (
     <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
