@@ -47,7 +47,7 @@ export default function CampaignDetailPage() {
     }
 
     setLoading(false);
-  }, [id, supabase]);
+  }, [id]);
 
   useEffect(() => {
     if (id) {
