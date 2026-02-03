@@ -1,34 +1,35 @@
-import { useState, useEffect, useCallback, ReactNode } from 'react';
-import { useAuth } from '@/lib/auth-context';
+'use client';
+
+import { ReactNode, useCallback, useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth-context';
 
 export interface ContentFetcherState {
+  content: any[];
   isLoading: boolean;
   error: string | null;
-  content: any[];
   refetch: () => void;
 }
 
 interface CreatorContentFetcherProps {
   platform: 'tiktok' | 'linkedin';
-  children: (fetcher: ContentFetcherState) => ReactNode;
+  children: (state: ContentFetcherState) => ReactNode;
 }
 
-const CreatorContentFetcher = ({ platform, children }: CreatorContentFetcherProps) => {
+export default function CreatorContentFetcher({ platform, children }: CreatorContentFetcherProps) {
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [content, setContent] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const supabase = createBrowserClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   const fetchContent = useCallback(async () => {
-    if (!user || !platform) {
-      setIsLoading(false);
+    if (!user) {
+      setError("User not authenticated.");
       return;
     }
 
@@ -40,14 +41,20 @@ const CreatorContentFetcher = ({ platform, children }: CreatorContentFetcherProp
         body: { platform },
       });
 
-      if (functionError) throw functionError;
-      if (data.error) throw new Error(data.error);
+      if (functionError) throw new Error(functionError.message);
 
-      setContent(data.posts || []);
+      // Validate the response shape as per instructions
+      if (data && Array.isArray(data.posts)) {
+        setContent(data.posts);
+      } else {
+        console.warn('Invalid response shape from fetch-user-posts', data);
+        setContent([]);
+        throw new Error("Failed to fetch content. The API returned an unexpected format.");
+      }
+
     } catch (e: any) {
-      console.error("Failed to fetch creator content:", e);
-      setError('Could not fetch your content. You can submit a URL manually.');
-      toast.error(e.message || 'Failed to fetch content.');
+      setError(e.message || "An unexpected error occurred while fetching your content.");
+      setContent([]);
     } finally {
       setIsLoading(false);
     }
@@ -57,7 +64,5 @@ const CreatorContentFetcher = ({ platform, children }: CreatorContentFetcherProp
     fetchContent();
   }, [fetchContent]);
 
-  return <>{children({ isLoading, error, content, refetch: fetchContent })}</>;
-};
-
-export default CreatorContentFetcher;
+  return <>{children({ content, isLoading, error, refetch: fetchContent })}</>;
+}

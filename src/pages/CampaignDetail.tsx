@@ -1,33 +1,31 @@
 
-import { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/auth-context';
-import { Navbar } from '@/components/layout/Navbar';
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/router';
 import { createBrowserClient } from '@supabase/ssr';
 import { toast } from 'sonner';
-
+import { Navbar } from '@/components/layout/Navbar';
 import VideoPlayer from '@/components/content/VideoPlayer';
 import Leaderboard from '@/components/content/Leaderboard';
 import SubmitBar from '@/components/content/SubmitBar';
 import CreatorContentFetcher from '@/components/content/CreatorContentFetcher';
+import { useAuth } from '@/lib/auth-context';
 
-export default function CampaignDetail() {
-  const { id } = useParams<{ id: string }>();
+export default function CampaignDetailPage() {
+  const router = useRouter();
+  const { id } = router.query;
   const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
   const [campaign, setCampaign] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const supabase = createBrowserClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const loadCampaignData = async () => {
+  const loadCampaignData = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
 
     const { data: campaignData, error: campaignError } = await supabase
       .from('campaigns')
@@ -37,53 +35,75 @@ export default function CampaignDetail() {
 
     if (campaignError || !campaignData) {
       toast.error('Campaign not found.');
-      navigate('/campaigns');
+      setLoading(false);
+      router.push('/campaigns');
       return;
     }
     setCampaign(campaignData);
 
+    // Using a generic RPC call to let the backend handle the query complexity
     const { data: submissionData, error: submissionError } = await supabase
-      .from('submissions')
-      .select('*, profiles(username)')
-      .eq('campaign_id', id)
-      .order('view_count', { ascending: false })
-      .order('created_at', { ascending: true });
+        .rpc('get_campaign_submissions', { campaign_id_param: id });
 
     if (submissionError) {
       toast.error('Could not load submissions.');
-    } else {
-      setSubmissions(submissionData.map(s => ({...s, creator_name: s.profiles.username})));
+    } else if (submissionData) {
+      setSubmissions(submissionData);
     }
-    setLoading(false);
-  };
 
+    setLoading(false);
+  }, [id, supabase, router]);
 
   useEffect(() => {
-    loadCampaignData();
-  }, [id]);
+    if (router.isReady) {
+      setLoading(true);
+      loadCampaignData();
+    }
+  }, [router.isReady, loadCampaignData]);
 
-  const handleNewSubmission = (submission: any) => {
-    setSubmissions(prev => [...prev, {...submission, profiles: {username: user?.user_metadata.user_name}}].sort((a,b) => b.view_count - a.view_count || a.creator_name.localeCompare(b.creator_name)));
-    loadCampaignData();
+  const handleNewSubmission = (newSubmission: any) => {
+     // Enrich the submission with client-side data for immediate UI update
+     const enrichedSubmission = {
+        ...newSubmission,
+        creator_name: user?.user_metadata?.user_name || 'You',
+        avatar_url: user?.user_metadata?.avatar_url,
+        view_count: newSubmission.view_count || 0, // Ensure view_count is not null
+    };
+    setSubmissions(prev => [enrichedSubmission, ...prev]);
   };
 
   const sortedSubmissions = useMemo(() => {
     return [...submissions].sort((a, b) => {
-      if (b.view_count !== a.view_count) {
-        return b.view_count - a.view_count;
+      const viewsA = a.view_count || 0;
+      const viewsB = b.view_count || 0;
+      if (viewsB !== viewsA) {
+        return viewsB - viewsA;
       }
-      return a.creator_name.localeCompare(b.creator_name);
+      const nameA = a.creator_name || '';
+      const nameB = b.creator_name || '';
+      return nameA.localeCompare(nameB);
     });
   }, [submissions]);
 
-  if (loading || authLoading) {
+  if (loading || authLoading || !router.isReady) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
-          <div className="text-xl font-semibold">Loading...</div>
+          <div className="text-xl font-semibold">Loading Campaign...</div>
         </main>
       </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+        <div className="flex flex-col min-h-screen bg-background">
+            <Navbar />
+            <main className="flex-1 flex items-center justify-center">
+            <div className="text-xl font-semibold">Campaign not found.</div>
+            </main>
+        </div>
     );
   }
 
@@ -92,29 +112,25 @@ export default function CampaignDetail() {
       <Navbar />
       <main className="flex-1 flex flex-col gap-4 p-4 md:p-6">
         <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
-            <p className="text-muted-foreground">{campaign.description}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
+          <p className="text-muted-foreground">{campaign.description}</p>
         </div>
-        <div className="w-full">
-          {user && (
-            <CreatorContentFetcher
-              platform={campaign.platform}
-              onSubmission={handleNewSubmission}
-              campaignId={campaign.id}
-            >
-              {(fetcher) => (
-                <SubmitBar
-                  campaignId={campaign.id}
-                  onNewSubmission={handleNewSubmission}
-                  platform={campaign.platform}
-                  contentFetcher={fetcher}
-                />
-              )}
-            </CreatorContentFetcher>
-          )}
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
-          <div className="md:col-span-2 h-[60vh] md:h-auto">
+
+        {user && campaign.platform && (
+          <CreatorContentFetcher platform={campaign.platform}>
+            {(fetcherState) => (
+              <SubmitBar
+                campaignId={campaign.id}
+                platform={campaign.platform}
+                onNewSubmission={handleNewSubmission}
+                contentFetcher={fetcherState}
+              />
+            )}
+          </CreatorContentFetcher>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0">
+          <div className="md:col-span-2 h-[70vh] md:h-auto min-h-0">
             {sortedSubmissions.length > 0 ? (
               <VideoPlayer
                 submissions={sortedSubmissions}
@@ -123,12 +139,12 @@ export default function CampaignDetail() {
               />
             ) : (
               <div className="flex items-center justify-center h-full bg-muted rounded-lg">
-                <p>No submissions yet.</p>
+                <p>Be the first to submit!</p>
               </div>
             )}
           </div>
-  
-          <div className="h-[60vh] md:h-auto">
+
+          <div className="h-[70vh] md:h-auto min-h-0">
             <Leaderboard submissions={sortedSubmissions} />
           </div>
         </div>
