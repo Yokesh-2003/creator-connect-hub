@@ -93,6 +93,7 @@ export default function Submit() {
           body: {
             platform: campaignData.platform,
             socialAccountId: socialAccount.id,
+            campaignId: campaignId,
           },
         });
         
