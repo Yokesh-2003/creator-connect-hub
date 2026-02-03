@@ -143,11 +143,17 @@ export default function Submit() {
 
       if (error) throw error;
 
-      toast.success("Submission successful!", { description: "Redirecting you to the campaign." });
-      navigate(`/campaigns/${campaignId}`);
+      toast.success("Submission successful!", { 
+        description: "Redirecting you to the campaign.",
+        id: submissionToast,
+        onAutoClose: () => navigate(`/campaigns/${campaignId}`) 
+      });
 
     } catch (e: any) {
-      toast.error("Submission Failed", { description: e.message || "An unexpected error occurred." });
+      toast.error("Submission Failed", { 
+        description: e.message || "An unexpected error occurred.",
+        id: submissionToast
+      });
     }
   };
   
@@ -269,11 +275,17 @@ export default function Submit() {
                       throw new Error(errorMsg);
                     }
 
-                    toast.success("Submission successful!", { description: "Your manual submission was received." });
-                    navigate(`/campaigns/${campaignId}`);
+                    toast.success("Submission successful!", {
+                      id: submissionToast,
+                      description: "Your manual submission was received.",
+                      onAutoClose: () => navigate(`/campaigns/${campaignId}`)
+                    });
                   } catch (e: any) {
                     console.error(e);
-                    toast.error("Failed to submit.", { description: e.message || "Please check the URL and try again." });
+                    toast.error("Failed to submit.", {
+                      id: submissionToast,
+                      description: e.message || "Please check the URL and try again."
+                    });
                   }
                 }}
                 className="rounded-l-none rounded-r-md"
