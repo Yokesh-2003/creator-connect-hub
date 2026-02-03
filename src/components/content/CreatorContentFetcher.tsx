@@ -51,7 +51,7 @@ export default function CreatorContentFetcher({ platform, children }: CreatorCon
     } finally {
       setIsLoading(false);
     }
-  }, [user, platform, supabase]);
+  }, [user, platform]);
 
   useEffect(() => {
     fetchContent();
