@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
 import VideoPlayer from '@/components/content/VideoPlayer';
 import Leaderboard from '@/components/content/Leaderboard';
@@ -15,13 +15,6 @@ export default function CampaignDetailPage() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
-
-  const supabase = useMemo(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    ), 
-  []);
 
   const loadCampaignData = useCallback(async () => {
     if (!id) return;
@@ -43,7 +36,7 @@ export default function CampaignDetailPage() {
 
     const { data: submissionData, error: submissionError } = await supabase
       .from('submissions')
-      .select('id, post_url, view_count, creator_name, created_at')
+      .select('id, content_url, view_count, creator_name, created_at')
       .eq('campaign_id', id);
 
     if (submissionError) {
@@ -54,7 +47,7 @@ export default function CampaignDetailPage() {
     }
 
     setLoading(false);
-  }, [id, supabase]);
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -104,7 +97,7 @@ export default function CampaignDetailPage() {
       <Navbar />
       <main className="flex-1 flex flex-col gap-4 p-4 md:p-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{campaign.title}</h1>
           <p className="text-muted-foreground">{campaign.description}</p>
         </div>
 
