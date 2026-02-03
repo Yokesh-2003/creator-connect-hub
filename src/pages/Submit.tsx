@@ -1,13 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { createBrowserClient } from "@supabase/ssr";
+import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { FaTiktok, FaLinkedin } from "react-icons/fa";
 import { CheckCircle, Eye, Heart } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import { Toaster } from "@/components/ui/toaster";
+import { toast } from "sonner";
 import {
   Accordion,
   AccordionContent,
@@ -27,13 +26,8 @@ const formatViews = (views: number) => {
 };
 
 export default function Submit() {
-  const supabase = createBrowserClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
-  );
   const { id: campaignId } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [campaign, setCampaign] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [selectedPost, setSelectedPost] = useState<any>(null);
@@ -49,7 +43,7 @@ export default function Submit() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast({ title: "Authentication required", description: "Please log in to submit content.", variant: "destructive" });
+        toast.error("Authentication required", { description: "Please log in to submit content." });
         navigate(`/auth?redirect=/campaigns/${campaignId}/submit`);
         setLoading(false);
         return;
@@ -62,7 +56,7 @@ export default function Submit() {
         .single();
 
       if (campaignError || !campaignData) {
-        toast({ variant: "destructive", title: "Error", description: "Campaign not found." });
+        toast.error("Error", { description: "Campaign not found." });
         setError("Campaign not found.");
         setLoading(false);
         return;
@@ -73,7 +67,7 @@ export default function Submit() {
       const startDate = new Date(campaignData.start_date);
       const endDate = new Date(campaignData.end_date);
       if (now < startDate || now > endDate) {
-        toast({ variant: "destructive", title: "Campaign Not Active", description: "This campaign is not currently running."});
+        toast.error("Campaign Not Active", { description: "This campaign is not currently running." });
         setError("This campaign is not active.");
         setLoading(false);
         return;
@@ -87,7 +81,7 @@ export default function Submit() {
 
       if (accountsError || !socialAccounts || !socialAccounts.length) {
         const errorMessage = `Please connect your ${campaignData.platform} account to submit content automatically.`;
-        toast({ title: "Account Not Connected", description: errorMessage, variant: "destructive" });
+        toast.error("Account Not Connected", { description: errorMessage });
         setError(errorMessage);
         setLoading(false);
         return;
@@ -117,10 +111,8 @@ export default function Submit() {
       } catch (e: any) {
         console.error("Content fetch error:", e);
         setError("Failed to fetch your content automatically.");
-        toast({
-            variant: "destructive",
-            title: "Could Not Fetch Content",
-            description: "We couldn't load your posts automatically. You can try submitting a URL manually.",
+        toast.error("Could Not Fetch Content", {
+          description: "We couldn't load your posts automatically. You can try submitting a URL manually.",
         });
       } finally {
         setLoading(false);
@@ -128,15 +120,15 @@ export default function Submit() {
     };
 
     fetchCampaignAndPosts();
-  }, [campaignId, navigate, toast, supabase]);
+  }, [campaignId, navigate, supabase]);
 
   const handleSubmit = async () => {
     if (!selectedPost || !campaignId) {
-      toast({ variant: "destructive", title: "Error", description: "Please select a post to submit." });
+      toast.error("Error", { description: "Please select a post to submit." });
       return;
     }
 
-    const submissionToast = toast({ title: "Submitting your post..." });
+    const submissionToast = toast("Submitting your post...");
 
     try {
       const { error } = await supabase.functions.invoke('submit-content', {
@@ -151,11 +143,11 @@ export default function Submit() {
 
       if (error) throw error;
 
-      submissionToast.update({ id: submissionToast.id, title: "Submission successful!", description: "Redirecting you to the campaign." });
+      toast.success("Submission successful!", { id: submissionToast, description: "Redirecting you to the campaign." });
       navigate(`/campaigns/${campaignId}`);
 
     } catch (e: any) {
-      submissionToast.update({ id: submissionToast.id, variant: "destructive", title: "Submission Failed", description: e.message || "An unexpected error occurred." });
+      toast.error("Submission Failed", { id: submissionToast, description: e.message || "An unexpected error occurred." });
     }
   };
   
@@ -237,14 +229,14 @@ export default function Submit() {
               <Button
                 onClick={async () => {
                   if (!manualUrl) {
-                    toast({title: "Please enter a URL.", variant: "destructive"});
+                    toast.error("Please enter a URL.");
                     return;
                   }
                   if (!campaignId) {
-                    toast({title: "Campaign not found.", variant: "destructive"});
+                    toast.error("Campaign not found.");
                     return;
                   }
-                  const submissionToast = toast({ title: "Submitting your link..." });
+                  const submissionToast = toast("Submitting your link...");
                   try {
                     const { data: { session } } = await supabase.auth.getSession();
                     if (!session) {
@@ -277,11 +269,11 @@ export default function Submit() {
                       throw new Error(errorMsg);
                     }
 
-                    submissionToast.update({id: submissionToast.id, title: "Submission successful!", description: "Your manual submission was received."});
+                    toast.success("Submission successful!", { id: submissionToast, description: "Your manual submission was received." });
                     navigate(`/campaigns/${campaignId}`);
                   } catch (e: any) {
                     console.error(e);
-                    submissionToast.update({id: submissionToast.id, title: "Failed to submit.", description: e.message || "Please check the URL and try again.", variant: "destructive"});
+                    toast.error("Failed to submit.", { id: submissionToast, description: e.message || "Please check the URL and try again." });
                   }
                 }}
                 className="rounded-l-none rounded-r-md"
@@ -298,7 +290,6 @@ export default function Submit() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <Toaster />
       <main className="container pt-24 pb-32">
         {campaign && (
           <div className="mb-8 text-center">

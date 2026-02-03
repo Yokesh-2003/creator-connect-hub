@@ -15,7 +15,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/campaigns', label: 'Campaigns' },
     { href: '/leaderboard', label: 'Leaderboard' },
-    { href: '/about', label: 'How It Works' },
+    { href: '/', label: 'How It Works' },
   ];
 
   return (

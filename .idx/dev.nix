@@ -14,12 +14,7 @@ pkgs.docker
               command = [
                 "npm",
                 "run",
-                "dev",
-                "--",
-                "--port",
-                "$PORT",
-                "--host",
-                "0.0.0.0"
+"dev"
               ];
               manager = "web";
             };
