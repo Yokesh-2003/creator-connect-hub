@@ -19,16 +19,25 @@ interface SubmitBarProps {
   contentFetcher: ContentFetcherState;
 }
 
-export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher }: SubmitBarProps) {
+export default function SubmitBar({ campaignId, platform, onNewSubmission, contentFetcher }: SubmitBarProps) {
   const [manualUrl, setManualUrl] = useState('');
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showManual, setShowManual] = useState(false);
+  
+  // Determine initial state based on fetched content, but allow user to override
+  const [showManual, setShowManual] = useState(!contentFetcher.content || contentFetcher.content.length === 0);
 
   const supabase = createBrowserClient(
     import.meta.env.VITE_SUPABASE_URL!,
     import.meta.env.VITE_SUPABASE_ANON_KEY!
   );
+
+  // When content loads, if manual entry isn't already shown, switch to selector
+  useEffect(() => {
+    if (contentFetcher.content && contentFetcher.content.length > 0) {
+        setShowManual(false);
+    }
+  }, [contentFetcher.content]);
 
   const hasContent = contentFetcher.content && contentFetcher.content.length > 0;
 
@@ -37,7 +46,7 @@ export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher 
 
     if (!showManual && selectedContentId) {
       const selectedPost = contentFetcher.content.find(p => p.id === selectedContentId);
-      postUrl = selectedPost?.embed_url || selectedPost?.url;
+      postUrl = selectedPost?.url; // Use `url` as per the spec for submission
     }
 
     if (!postUrl) {
@@ -59,16 +68,18 @@ export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher 
       if (error) throw new Error(error.message);
       if (data.error) throw new Error(data.error);
 
-
       toast.success('Submission successful!', {
         id: submissionToast,
-        description: 'Your submission will appear in the feed.',
+        description: 'Your content will appear in the feed.',
       });
       
+      // E. After Submission: Emit the new submission object
       onNewSubmission(data.submission);
+
+      // Reset form state
       setManualUrl('');
       setSelectedContentId(null);
-      setShowManual(false);
+      if(hasContent) setShowManual(false);
 
     } catch (e: any) {
       toast.error('Submission Failed', {
@@ -89,7 +100,7 @@ export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher 
         <SelectContent>
           {contentFetcher.content.map((post: any) => (
             <SelectItem key={post.id} value={post.id}>
-              {post.title || post.text_content || 'Untitled Post'}
+              {post.title || 'Untitled Post'}
             </SelectItem>
           ))}
         </SelectContent>
@@ -117,27 +128,32 @@ export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher 
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 bg-card rounded-lg shadow">
-      <div className="mb-2 text-sm text-muted-foreground">
-        {contentFetcher.isLoading ? 'Loading your content...' 
-         : hasContent && !showManual ? 'Select a post to submit:'
-         : 'Submit your post URL manually:'
-        }
-      </div>
-      
-      {hasContent && !showManual ? renderContentSelector() : renderManualInput()} 
+        <div className="mb-2 text-sm text-muted-foreground">
+            {contentFetcher.isLoading
+            ? 'Loading your content...'
+            : hasContent && !showManual
+            ? 'Select a post to submit:'
+            : `Submit your ${platform} post URL manually:`}
+        </div>
 
-      {contentFetcher.error && <p className="text-red-500 text-xs mt-2">{contentFetcher.error}</p>}
+        {hasContent && !showManual ? renderContentSelector() : renderManualInput()}
 
-      <div className="text-center mt-2">
-        {hasContent && (
-             <Button variant="link" className="text-xs" onClick={() => setShowManual(!showManual)}>
-                {showManual ? 'Select from your posts' : 'Or submit a URL manually'}
-            </Button>
+        {contentFetcher.error && !hasContent && (
+            <p className="text-red-500 text-xs mt-2">
+            Could not load your content. {contentFetcher.error} You can submit a URL manually.
+            </p>
         )}
-        <Button variant="link" className="text-xs" onClick={() => contentFetcher.refetch()}>
-            Refresh content
-        </Button>
-      </div>
+
+        <div className="text-center mt-2 flex justify-center items-center gap-4">
+            {hasContent && (
+                <Button variant="link" className="text-xs" onClick={() => setShowManual(!showManual)}>
+                    {showManual ? 'Select from your posts' : 'Or submit a URL manually'}
+                </Button>
+            )}
+            <Button variant="link" className="text-xs" onClick={contentFetcher.refetch}>
+                Refresh content
+            </Button>
+        </div>
     </div>
   );
 }

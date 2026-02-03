@@ -1,8 +1,6 @@
-
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/router';
+import { useParams } from 'react-router-dom';
 import { createBrowserClient } from '@supabase/ssr';
-import { toast } from 'sonner';
 import { Navbar } from '@/components/layout/Navbar';
 import VideoPlayer from '@/components/content/VideoPlayer';
 import Leaderboard from '@/components/content/Leaderboard';
@@ -11,21 +9,23 @@ import CreatorContentFetcher from '@/components/content/CreatorContentFetcher';
 import { useAuth } from '@/lib/auth-context';
 
 export default function CampaignDetailPage() {
-  const router = useRouter();
-  const { id } = router.query;
+  const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
   const [campaign, setCampaign] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = useMemo(() => 
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    ), 
+  []);
 
   const loadCampaignData = useCallback(async () => {
     if (!id) return;
+    setLoading(true);
 
     const { data: campaignData, error: campaignError } = await supabase
       .from('campaigns')
@@ -34,58 +34,47 @@ export default function CampaignDetailPage() {
       .single();
 
     if (campaignError || !campaignData) {
-      toast.error('Campaign not found.');
+      console.error(campaignError?.message || 'Campaign not found.');
+      setCampaign(null);
       setLoading(false);
-      router.push('/campaigns');
       return;
     }
     setCampaign(campaignData);
 
-    // Using a generic RPC call to let the backend handle the query complexity
     const { data: submissionData, error: submissionError } = await supabase
-        .rpc('get_campaign_submissions', { campaign_id_param: id });
+      .from('submissions')
+      .select('id, post_url, view_count, creator_name, created_at')
+      .eq('campaign_id', id);
 
     if (submissionError) {
-      toast.error('Could not load submissions.');
+      console.error('Could not load submissions:', submissionError);
+      setSubmissions([]);
     } else if (submissionData) {
       setSubmissions(submissionData);
     }
 
     setLoading(false);
-  }, [id, supabase, router]);
+  }, [id, supabase]);
 
   useEffect(() => {
-    if (router.isReady) {
-      setLoading(true);
-      loadCampaignData();
+    if (id) {
+        loadCampaignData();
     }
-  }, [router.isReady, loadCampaignData]);
+  }, [id, loadCampaignData]);
 
   const handleNewSubmission = (newSubmission: any) => {
-     // Enrich the submission with client-side data for immediate UI update
-     const enrichedSubmission = {
-        ...newSubmission,
-        creator_name: user?.user_metadata?.user_name || 'You',
-        avatar_url: user?.user_metadata?.avatar_url,
-        view_count: newSubmission.view_count || 0, // Ensure view_count is not null
-    };
-    setSubmissions(prev => [enrichedSubmission, ...prev]);
+    setSubmissions(prev => [newSubmission, ...prev]);
   };
 
   const sortedSubmissions = useMemo(() => {
-    return [...submissions].sort((a, b) => {
-      const viewsA = a.view_count || 0;
-      const viewsB = b.view_count || 0;
-      if (viewsB !== viewsA) {
-        return viewsB - viewsA;
-      }
-      const nameA = a.creator_name || '';
-      const nameB = b.creator_name || '';
-      return nameA.localeCompare(nameB);
-    });
+    return [...submissions].sort(
+      (a, b) =>
+        (b.view_count || 0) - (a.view_count || 0) ||
+        (a.creator_name || '').localeCompare(b.creator_name || '')
+    );
   }, [submissions]);
 
-  if (loading || authLoading || !router.isReady) {
+  if (loading || authLoading) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <Navbar />
@@ -101,7 +90,10 @@ export default function CampaignDetailPage() {
         <div className="flex flex-col min-h-screen bg-background">
             <Navbar />
             <main className="flex-1 flex items-center justify-center">
-            <div className="text-xl font-semibold">Campaign not found.</div>
+                <div className="text-xl font-semibold text-center">
+                    <p>Campaign Not Found</p>
+                    <p className="text-sm text-muted-foreground">This campaign may not exist or has been removed.</p>
+                </div>
             </main>
         </div>
     );
@@ -139,7 +131,7 @@ export default function CampaignDetailPage() {
               />
             ) : (
               <div className="flex items-center justify-center h-full bg-muted rounded-lg">
-                <p>Be the first to submit!</p>
+                <p className="text-muted-foreground">No submissions yet. Be the first!</p>
               </div>
             )}
           </div>

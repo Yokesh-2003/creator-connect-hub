@@ -1,48 +1,50 @@
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+'use client';
 
-const formatViews = (views: number) => {
-  if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
-  if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
-  return views;
-};
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
-export default function Leaderboard({ submissions }: { submissions: any[] }) {
+interface LeaderboardProps {
+  submissions: any[]; // Expects sorted submissions
+}
+
+// 5. Leaderboard: Pure UI, receives sorted submissions
+export default function Leaderboard({ submissions }: LeaderboardProps) {
+
+  const formatViews = (views: number | null | undefined) => {
+    if (views === null || views === undefined) return '0';
+    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
+    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
+    return views.toString();
+  };
+
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="w-full h-full flex flex-col">
       <CardHeader>
-        <CardTitle className="text-xl">Leaderboard</CardTitle>
+        <CardTitle>Leaderboard</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto">
-        <div className="space-y-4">
-          {submissions.map((sub, index) => {
-            const creatorName = sub.creator_name || sub.profiles?.username || 'Anonymous';
-            const avatarUrl = sub.avatar_url || sub.profiles?.avatar_url;
-
-            return (
-              <div key={sub.id || index} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-lg w-6 text-center">{index + 1}</span>
-                  <Avatar>
-                    <AvatarImage src={avatarUrl} alt={creatorName} />
-                    <AvatarFallback>{creatorName[0]?.toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold">{creatorName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatViews(sub.view_count || 0)} views
-                    </p>
-                  </div>
+      <CardContent className="flex-1 overflow-y-auto pr-2">
+        {submissions && submissions.length > 0 ? (
+          <ul className="space-y-4">
+            {submissions.map((sub, index) => (
+              <li key={sub.id || index} className="flex items-center space-x-4">
+                <span className="text-lg font-bold w-6 text-center">{index + 1}</span>
+                <Avatar className="h-10 w-10">
+                  {/* Use a placeholder if avatar_url isn't available */}
+                  <AvatarImage src={sub.avatar_url} alt={sub.creator_name || 'User'} />
+                  <AvatarFallback>{(sub.creator_name || 'U').charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{sub.creator_name || 'Anonymous'}</p>
+                  <p className="text-sm text-muted-foreground">{formatViews(sub.view_count)} views</p>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            <p>No submissions yet.</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
