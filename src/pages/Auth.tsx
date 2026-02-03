@@ -21,69 +21,62 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; }>({});
 
-  const { signIn, signUp, user } = useAuth();
+  const { signIn, signUp, session } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (user) {
+    // Redirect if a session already exists
+    if (session) {
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [session, navigate]);
 
   const validate = () => {
     const newErrors: typeof errors = {};
-    
     try {
       emailSchema.parse(email);
     } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.email = e.errors[0].message;
-      }
+      if (e instanceof z.ZodError) newErrors.email = e.errors[0].message;
     }
-
     try {
       passwordSchema.parse(password);
     } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.password = e.errors[0].message;
-      }
+      if (e instanceof z.ZodError) newErrors.password = e.errors[0].message;
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSignUp = async () => {
+    const { error } = await signUp(email, password);
+    if (error) {
+      toast({ title: 'Sign-up failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Account created', description: 'Please check your inbox for a confirmation link, then sign in.' });
+      setIsSignUp(false); // Switch to the sign-in view
+    }
+  };
+
+  const handleSignIn = async () => {
+    const { error } = await signIn(email, password);
+    if (error) {
+      toast({ title: 'Sign-in failed', description: error.message, variant: 'destructive' });
+    } else {
+      navigate('/dashboard'); // On success, redirect
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-
     setLoading(true);
-    try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
-
-        if (error) {
-          toast({ title: 'Error', description: error.message, variant: 'destructive' });
-        } else {
-          toast({ title: 'Confirm your email', description: 'Account created! Please check your inbox for a confirmation link.', duration: 10000 });
-          setIsSignUp(false);
-        }
-      } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          toast({ title: 'Sign in failed', description: 'Invalid email or password. Have you confirmed your email address?', variant: 'destructive' });
-        } else {
-          navigate('/dashboard');
-        }
-      }
-    } catch (err) {
-        if (err instanceof Error) {
-            toast({ title: 'An unexpected error occurred', description: err.message, variant: 'destructive' });
-        }
-    } finally {
-      setLoading(false);
+    if (isSignUp) {
+      await handleSignUp();
+    } else {
+      await handleSignIn();
     }
+    setLoading(false);
   };
 
   return (
@@ -95,11 +88,11 @@ export default function Auth() {
       >
         <div className="bg-card rounded-2xl shadow-2xl border border-border p-8">
           <div className="text-center mb-8">
-            <div className="w-12 h-12 mx-auto rounded-xl gradient-primary flex items-center justify-center mb-4">
+             <div className="w-12 h-12 mx-auto rounded-xl gradient-primary flex items-center justify-center mb-4">
               <span className="text-xl font-bold text-primary-foreground">G</span>
             </div>
             <h1 className="text-2xl font-bold mb-2">
-              {isSignUp ? 'Create your account' : 'Welcome back'}
+              {isSignUp ? 'Create an account' : 'Welcome back'}
             </h1>
             <p className="text-muted-foreground">
               {isSignUp ? 'Start earning with your content' : 'Sign in to your creator dashboard'}
@@ -111,14 +104,7 @@ export default function Auth() {
               <Label htmlFor="email">Email</Label>
               <div className="relative mt-1">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                />
+                <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" />
               </div>
               {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
             </div>
@@ -127,19 +113,8 @@ export default function Auth() {
               <Label htmlFor="password">Password</Label>
               <div className="relative mt-1">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+                <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -152,11 +127,7 @@ export default function Auth() {
           </form>
 
           <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
+            <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-sm text-muted-foreground hover:text-foreground">
               {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
           </div>
