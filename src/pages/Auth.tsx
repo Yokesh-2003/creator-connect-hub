@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -17,10 +17,9 @@ export default function Auth() {
   const [isSignUp, setIsSignUp] = useState(searchParams.get('signup') === 'true');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; fullName?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; }>({});
 
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -51,10 +50,6 @@ export default function Auth() {
       }
     }
 
-    if (isSignUp && !fullName.trim()) {
-      newErrors.fullName = 'Please enter your name';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -66,22 +61,26 @@ export default function Auth() {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password);
+
         if (error) {
-          if (error.message.includes('already registered')) {
-            toast({ title: 'Account exists', description: 'This email is already registered. Please sign in.', variant: 'destructive' });
-          } else {
-            toast({ title: 'Error', description: error.message, variant: 'destructive' });
-          }
+          toast({ title: 'Error', description: error.message, variant: 'destructive' });
         } else {
-          toast({ title: 'Welcome!', description: 'Your account has been created.' });
+          toast({ title: 'Confirm your email', description: 'Account created! Please check your inbox for a confirmation link.', duration: 10000 });
+          setIsSignUp(false);
         }
       } else {
         const { error } = await signIn(email, password);
         if (error) {
-          toast({ title: 'Sign in failed', description: 'Invalid email or password.', variant: 'destructive' });
+          toast({ title: 'Sign in failed', description: 'Invalid email or password. Have you confirmed your email address?', variant: 'destructive' });
+        } else {
+          navigate('/dashboard');
         }
       }
+    } catch (err) {
+        if (err instanceof Error) {
+            toast({ title: 'An unexpected error occurred', description: err.message, variant: 'destructive' });
+        }
     } finally {
       setLoading(false);
     }
@@ -108,24 +107,6 @@ export default function Auth() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isSignUp && (
-              <div>
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative mt-1">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {errors.fullName && <p className="text-sm text-destructive mt-1">{errors.fullName}</p>}
-              </div>
-            )}
-
             <div>
               <Label htmlFor="email">Email</Label>
               <div className="relative mt-1">

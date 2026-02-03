@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthResponse } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<AuthResponse>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
@@ -24,10 +24,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        if (session?.user) {
-          createProfileIfNeeded(session.user);
-        }
       }
     );
 
@@ -40,37 +36,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const createProfileIfNeeded = async (user: User) => {
-  const { data: existingProfile } = await supabase
-    .from('profiles')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (!existingProfile) {
-    await supabase.from('profiles').insert({
-      user_id: user.id,
-      full_name:
-        user.user_metadata?.full_name ||
-        user.email?.split('@')[0] ||
-        'Unknown',
-    });
-  }
-};
-
-
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (email: string, password: string) => {
+    return supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
     });
-
-    return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -78,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
     });
-
     return { error: error as Error | null };
   };
 
