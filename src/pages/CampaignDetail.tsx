@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Navbar } from '@/components/layout/Navbar';
 import VideoPlayer from '@/components/content/VideoPlayer';
 import Leaderboard from '@/components/content/Leaderboard';
 import SubmitBar from '@/components/content/SubmitBar';
 import CreatorContentFetcher from '@/components/content/CreatorContentFetcher';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 
 export default function CampaignDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,7 +17,10 @@ export default function CampaignDetailPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const loadCampaignData = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     const { data: campaignData, error: campaignError } = await supabase
@@ -36,7 +39,7 @@ export default function CampaignDetailPage() {
 
     const { data: submissionData, error: submissionError } = await supabase
       .from('submissions')
-      .select('id, content_url, view_count, creator_name, created_at')
+      .select('id, post_url, view_count, creator_name, created_at')
       .eq('campaign_id', id);
 
     if (submissionError) {
@@ -50,10 +53,8 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    if (id) {
-        loadCampaignData();
-    }
-  }, [id, loadCampaignData]);
+    loadCampaignData();
+  }, [loadCampaignData]);
 
   const handleNewSubmission = (newSubmission: any) => {
     setSubmissions(prev => [newSubmission, ...prev]);
@@ -97,7 +98,7 @@ export default function CampaignDetailPage() {
       <Navbar />
       <main className="flex-1 flex flex-col gap-4 p-4 md:p-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{campaign.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
           <p className="text-muted-foreground">{campaign.description}</p>
         </div>
 

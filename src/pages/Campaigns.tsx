@@ -7,7 +7,7 @@ import { Trophy, DollarSign, Calendar, ArrowRight } from "lucide-react";
 import { Footer } from "@/components/landing/Footer";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const platformIcons: Record<string, any> = {
   tiktok: FaTiktok,
