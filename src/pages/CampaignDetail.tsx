@@ -7,17 +7,15 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Trophy, Calendar, Users, DollarSign, ExternalLink, Medal, List } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { FaTiktok, FaLinkedin } from 'react-icons/fa';
 
 export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [campaign, setCampaign] = useState<any>(null);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -45,7 +43,7 @@ export default function CampaignDetail() {
       .single();
 
     if (campaignError || !campaignData) {
-      toast({ title: 'Error', description: 'Campaign not found.', variant: 'destructive' });
+      toast.error('Error', { description: 'Campaign not found.' });
       navigate('/campaigns');
       return;
     }
@@ -65,7 +63,7 @@ export default function CampaignDetail() {
       .order('submitted_at', { ascending: false });
 
     if (submissionsError) {
-      toast({ title: 'Error', description: 'Could not load submissions.', variant: 'destructive' });
+      toast.error('Error', { description: 'Could not load submissions.' });
       setLoading(false);
       return;
     }
