@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Select,
@@ -27,10 +27,7 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
   // Determine initial state based on fetched content, but allow user to override
   const [showManual, setShowManual] = useState(!contentFetcher.content || contentFetcher.content.length === 0);
 
-  const supabase = createBrowserClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
-  );
+  // Using shared supabase client from @/integrations/supabase/client
 
   // When content loads, if manual entry isn't already shown, switch to selector
   useEffect(() => {
