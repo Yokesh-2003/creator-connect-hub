@@ -141,9 +141,9 @@ export default function Campaigns() {
                         className="w-full mt-auto group"
                         onClick={() => {
                             if (canSubmit) {
-                                navigate(`/campaigns/${campaign.id}/submit`);
+                                navigate(`/campaigns/${campaign.id}`);
                             } else {
-                                navigate(`/auth?redirect=/campaigns/${campaign.id}/submit`);
+                                navigate(`/auth?redirect=/campaigns/${campaign.id}`);
                             }
                         }}
                       >
