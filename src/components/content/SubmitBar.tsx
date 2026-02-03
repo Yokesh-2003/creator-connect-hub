@@ -1,47 +1,75 @@
-
-'use client';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
+import { createBrowserClient } from '@supabase/ssr';
 import { toast } from 'sonner';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ContentFetcherState } from './CreatorContentFetcher';
 
 interface SubmitBarProps {
   campaignId: string;
-  onNewSubmission: () => void;
+  platform: 'tiktok' | 'linkedin';
+  onNewSubmission: (submission: any) => void;
+  contentFetcher: ContentFetcherState;
 }
 
-export default function SubmitBar({ campaignId, onNewSubmission }: SubmitBarProps) {
-  const [url, setUrl] = useState('');
+export default function SubmitBar({ campaignId, onNewSubmission, contentFetcher }: SubmitBarProps) {
+  const [manualUrl, setManualUrl] = useState('');
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showManual, setShowManual] = useState(false);
+
+  const supabase = createBrowserClient(
+    import.meta.env.VITE_SUPABASE_URL!,
+    import.meta.env.VITE_SUPABASE_ANON_KEY!
+  );
+
+  const hasContent = contentFetcher.content && contentFetcher.content.length > 0;
 
   const handleSubmit = async () => {
-    if (!url) {
-      toast.error('Please enter a URL to submit.');
+    let postUrl = manualUrl;
+
+    if (!showManual && selectedContentId) {
+      const selectedPost = contentFetcher.content.find(p => p.id === selectedContentId);
+      postUrl = selectedPost?.embed_url || selectedPost?.url;
+    }
+
+    if (!postUrl) {
+      toast.error('Please select a post or enter a URL.');
       return;
     }
 
     setIsSubmitting(true);
-    const submissionToast = toast.loading('Submitting your link...');
+    const submissionToast = toast.loading('Submitting your post...');
 
     try {
-      const { error } = await supabase.functions.invoke('submit-content', {
+      const { data, error } = await supabase.functions.invoke('submit-content', {
         body: {
           campaign_id: campaignId,
-          post_url: url,
+          post_url: postUrl,
         },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
 
       toast.success('Submission successful!', {
         id: submissionToast,
-        description: 'Your submission is being processed and will appear shortly.',
+        description: 'Your submission will appear in the feed.',
       });
-      setUrl('');
-      onNewSubmission(); // Trigger a refresh of the campaign data
+      
+      onNewSubmission(data.submission);
+      setManualUrl('');
+      setSelectedContentId(null);
+      setShowManual(false);
+
     } catch (e: any) {
       toast.error('Submission Failed', {
         id: submissionToast,
@@ -52,19 +80,64 @@ export default function SubmitBar({ campaignId, onNewSubmission }: SubmitBarProp
     }
   };
 
-  return (
-    <div className="flex w-full max-w-2xl mx-auto items-center space-x-2 mb-4">
-      <Input
-        type="url"
-        placeholder="Paste your TikTok or LinkedIn post URL here to enter the campaign"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        disabled={isSubmitting}
-        className="bg-slate-800 border-slate-700 text-white"
-      />
-      <Button onClick={handleSubmit} disabled={isSubmitting || !url}>
+  const renderContentSelector = () => (
+    <div className="flex w-full items-center space-x-2">
+      <Select onValueChange={setSelectedContentId} value={selectedContentId || ''}>
+        <SelectTrigger className="flex-1">
+          <SelectValue placeholder="Select one of your eligible posts..." />
+        </SelectTrigger>
+        <SelectContent>
+          {contentFetcher.content.map((post: any) => (
+            <SelectItem key={post.id} value={post.id}>
+              {post.title || post.text_content || 'Untitled Post'}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button onClick={handleSubmit} disabled={isSubmitting || !selectedContentId}>
         {isSubmitting ? 'Submitting...' : 'Submit'}
       </Button>
+    </div>
+  );
+
+  const renderManualInput = () => (
+    <div className="flex w-full items-center space-x-2">
+        <Input
+          type="url"
+          placeholder={`Paste your ${platform} post URL here...`}
+          value={manualUrl}
+          onChange={(e) => setManualUrl(e.target.value)}
+          disabled={isSubmitting}
+        />
+        <Button onClick={handleSubmit} disabled={isSubmitting || !manualUrl}>
+            {isSubmitting ? 'Submitting...' : 'Submit'}
+        </Button>
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-2xl mx-auto p-4 bg-card rounded-lg shadow">
+      <div className="mb-2 text-sm text-muted-foreground">
+        {contentFetcher.isLoading ? 'Loading your content...' 
+         : hasContent && !showManual ? 'Select a post to submit:'
+         : 'Submit your post URL manually:'
+        }
+      </div>
+      
+      {hasContent && !showManual ? renderContentSelector() : renderManualInput()} 
+
+      {contentFetcher.error && <p className="text-red-500 text-xs mt-2">{contentFetcher.error}</p>}
+
+      <div className="text-center mt-2">
+        {hasContent && (
+             <Button variant="link" className="text-xs" onClick={() => setShowManual(!showManual)}>
+                {showManual ? 'Select from your posts' : 'Or submit a URL manually'}
+            </Button>
+        )}
+        <Button variant="link" className="text-xs" onClick={() => contentFetcher.refetch()}>
+            Refresh content
+        </Button>
+      </div>
     </div>
   );
 }
