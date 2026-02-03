@@ -1,4 +1,3 @@
-import { serve } from "https/deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
@@ -6,7 +5,7 @@ const LINKEDIN_CLIENT_ID = Deno.env.get("LINKEDIN_CLIENT_ID")!;
 const LINKEDIN_CLIENT_SECRET = Deno.env.get("LINKEDIN_CLIENT_SECRET")!;
 const LINKEDIN_REDIRECT_URI = Deno.env.get("LINKEDIN_REDIRECT_URI")!;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -17,14 +16,20 @@ serve(async (req) => {
     const state = url.searchParams.get("state");
 
     if (!code) {
-      return new Response(JSON.stringify({ error: "No code provided" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "No code provided" }), { 
+        status: 400, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      });
     }
 
-    const decodedState = JSON.parse(atob(state));
+    const decodedState = JSON.parse(atob(state || ""));
     const userId = decodedState.user_id;
 
     if (!userId) {
-      return new Response(JSON.stringify({ error: "Invalid state" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Invalid state" }), { 
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
     const tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken";
@@ -43,46 +48,55 @@ serve(async (req) => {
     const tokenData = await tokenRes.json();
 
     if (!tokenData.access_token) {
-      return new Response(JSON.stringify({ error: "Failed to fetch access token" }), { status: 500 });
+      console.error("Token error:", tokenData);
+      return new Response(JSON.stringify({ error: "Failed to fetch access token" }), { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
-    const { access_token, expires_in, refresh_token, refresh_token_expires_in, scope } = tokenData;
+    const { access_token, expires_in, refresh_token } = tokenData;
 
-    const userRes = await fetch("https://api.linkedin.com/v2/me?projection=(id,localizedFirstName,localizedLastName,profilePicture(displayImage~:playableStreams))", {
+    const userRes = await fetch("https://api.linkedin.com/v2/userinfo", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     const userData = await userRes.json();
-    const { id, localizedFirstName, localizedLastName, profilePicture } = userData;
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!, 
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
 
     const { error } = await supabase.from("social_accounts").upsert([
       {
         user_id: userId,
         platform: "linkedin",
-        platform_user_id: id,
-        username: `${localizedFirstName} ${localizedLastName}`,
-        display_name: `${localizedFirstName} ${localizedLastName}`,
-        avatar_url: profilePicture?.["displayImage~"]?.elements?.[0]?.identifiers?.[0]?.identifier,
+        platform_user_id: userData.sub,
+        username: userData.name,
+        display_name: userData.name,
+        profile_url: `https://www.linkedin.com/in/${userData.sub}`,
         access_token: access_token,
-        refresh_token: refresh_token,
-        scopes: scope.split(","),
-        expires_at: new Date(Date.now() + expires_in * 1000),
-        refresh_token_expires_at: new Date(Date.now() + refresh_token_expires_in * 1000),
+        refresh_token: refresh_token || null,
+        token_expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
         is_connected: true,
       },
-    ], { onConflict: "user_id, platform" });
+    ], { onConflict: "user_id,platform" });
 
     if (error) {
       console.error("Supabase error:", error);
-      return new Response(JSON.stringify({ error: "Failed to save connection" }), { status: 500 });
+      return new Response(JSON.stringify({ error: "Failed to save connection" }), { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
     }
 
-    return new Response("<script>window.close();</script>", { headers: { "Content-Type": "text/html" } });
+    return new Response("<script>window.close();</script>", { 
+      headers: { "Content-Type": "text/html" } 
+    });
   } catch (err) {
     console.error("linkedin-oauth-callback error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
