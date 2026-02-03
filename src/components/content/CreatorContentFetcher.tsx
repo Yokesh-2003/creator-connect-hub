@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
 export interface ContentFetcherState {

@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 
 const TIKTOK_CLIENT_ID = import.meta.env.VITE_TIKTOK_CLIENT_ID;

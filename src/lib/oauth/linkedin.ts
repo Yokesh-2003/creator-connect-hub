@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const CLIENT_ID = import.meta.env.VITE_LINKEDIN_CLIENT_ID!;
 const REDIRECT_URI = import.meta.env.VITE_LINKEDIN_REDIRECT_URI!;
