@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 
 declare global {
@@ -40,11 +40,6 @@ const SubmissionPlayer = ({ submission, isVisible }: { submission: any; isVisibl
   const [embedHtml, setEmbedHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const supabase = createBrowserClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!
-  );
 
   useEffect(() => {
     if (!isVisible || !submission?.post_url) return;
