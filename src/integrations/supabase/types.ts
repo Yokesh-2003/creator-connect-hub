@@ -7,7 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
-  
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -248,45 +249,60 @@ export type Database = {
       submissions: {
         Row: {
           campaign_id: string
+          comment_count: number | null
           content_id: string | null
           content_type: string
           content_url: string
           created_at: string
           creator_id: string
+          creator_name: string | null
           id: string
+          like_count: number | null
           rejection_reason: string | null
+          share_count: number | null
           social_account_id: string
           status: string
           submitted_at: string
           updated_at: string
+          view_count: number | null
         }
         Insert: {
           campaign_id: string
+          comment_count?: number | null
           content_id?: string | null
           content_type?: string
           content_url: string
           created_at?: string
           creator_id: string
+          creator_name?: string | null
           id?: string
+          like_count?: number | null
           rejection_reason?: string | null
+          share_count?: number | null
           social_account_id: string
           status?: string
           submitted_at?: string
           updated_at?: string
+          view_count?: number | null
         }
         Update: {
           campaign_id?: string
+          comment_count?: number | null
           content_id?: string | null
           content_type?: string
           content_url?: string
           created_at?: string
           creator_id?: string
+          creator_name?: string | null
           id?: string
+          like_count?: number | null
           rejection_reason?: string | null
+          share_count?: number | null
           social_account_id?: string
           status?: string
           submitted_at?: string
           updated_at?: string
+          view_count?: number | null
         }
         Relationships: [
           {
