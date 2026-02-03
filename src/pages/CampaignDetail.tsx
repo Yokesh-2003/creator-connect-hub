@@ -36,7 +36,7 @@ export default function CampaignDetailPage() {
 
     const { data: submissionData, error: submissionError } = await supabase
       .from('submissions')
-      .select('id, post_url, view_count, creator_name, created_at')
+      .select('id, content_url, view_count, creator_name, created_at')
       .eq('campaign_id', id);
 
     if (submissionError) {
