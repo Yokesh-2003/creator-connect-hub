@@ -1,7 +1,5 @@
-'use client';
-
 import { ReactNode, useCallback, useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth-context';
 
 export interface ContentFetcherState {
@@ -21,11 +19,6 @@ export default function CreatorContentFetcher({ platform, children }: CreatorCon
   const [content, setContent] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
 
   const fetchContent = useCallback(async () => {
     if (!user) {
@@ -58,7 +51,7 @@ export default function CreatorContentFetcher({ platform, children }: CreatorCon
     } finally {
       setIsLoading(false);
     }
-  }, [user, platform, supabase]);
+  }, [user, platform]);
 
   useEffect(() => {
     fetchContent();
