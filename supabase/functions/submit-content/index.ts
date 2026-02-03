@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       // Basic URL validation
       try {
         const url = new URL(post_url);
-        if (url.protocol !== 'https' && url.protocol !== 'http:') {
+        if (url.protocol !== 'https:' && url.protocol !== 'http:') {
           throw new Error('Invalid protocol');
         }
       } catch (e) {
