@@ -97,7 +97,7 @@ export default function CampaignDetailPage() {
       <Navbar />
       <main className="flex-1 flex flex-col gap-4 p-4 md:p-6">
         <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">{campaign.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{campaign.title}</h1>
           <p className="text-muted-foreground">{campaign.description}</p>
         </div>
 
