@@ -48,7 +48,7 @@ export async function handleLinkedInCallback(
   console.log("✅ User authenticated:", session.user.id);
 
   const { data, error } = await supabase.functions.invoke(
-    "linkedin-oauth-callback",
+    "linkedin-callback",
     {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
