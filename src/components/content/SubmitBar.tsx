@@ -24,12 +24,8 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Determine initial state based on fetched content, but allow user to override
   const [showManual, setShowManual] = useState(!contentFetcher.content || contentFetcher.content.length === 0);
 
-  // Using shared supabase client from @/lib/supabase
-
-  // When content loads, if manual entry isn't already shown, switch to selector
   useEffect(() => {
     if (contentFetcher.content && contentFetcher.content.length > 0) {
         setShowManual(false);
@@ -39,14 +35,14 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
   const hasContent = contentFetcher.content && contentFetcher.content.length > 0;
 
   const handleSubmit = async () => {
-    let postUrl = manualUrl;
+    let contentUrl = manualUrl;
 
     if (!showManual && selectedContentId) {
       const selectedPost = contentFetcher.content.find(p => p.id === selectedContentId);
-      postUrl = selectedPost?.url; // Use `url` as per the spec for submission
+      contentUrl = selectedPost?.url;
     }
 
-    if (!postUrl) {
+    if (!contentUrl) {
       toast.error('Please select a post or enter a URL.');
       return;
     }
@@ -58,7 +54,8 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
       const { data, error } = await supabase.functions.invoke('submit-content', {
         body: {
           campaign_id: campaignId,
-          post_url: postUrl,
+          content_url: contentUrl,
+          platform: platform,
         },
       });
 
@@ -67,13 +64,11 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
 
       toast.success('Submission successful!', {
         id: submissionToast,
-        description: 'Your content will appear in the feed.',
+        description: 'Your content will now be tracked.',
       });
       
-      // E. After Submission: Emit the new submission object
-      onNewSubmission(data.submission);
+      onNewSubmission(data);
 
-      // Reset form state
       setManualUrl('');
       setSelectedContentId(null);
       if(hasContent) setShowManual(false);
