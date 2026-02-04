@@ -25,42 +25,29 @@ serve(async (req) => {
       );
     }
 
+    // 🔑 Create admin client
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    let body: any = {};
-    try {
-      body = await req.json();
-    } catch {}
-
-    const { code } = body;
-
-    if (!code) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Missing code" }),
-        { headers: corsHeaders }
-      );
-    }
-
+    // 🔑 Extract user from JWT manually
+    const jwt = authHeader.replace("Bearer ", "");
     const {
       data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+      error: jwtError,
+    } = await supabase.auth.getUser(jwt);
 
-    if (userError || !user) {
+    if (jwtError || !user) {
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid user" }),
+        JSON.stringify({ success: false, error: "Invalid user token" }),
         { headers: corsHeaders }
       );
     }
 
+    console.log("LinkedIn user:", user.id);
+
+    // ✅ UPSERT social account
     const { error: dbError } = await supabase
       .from("social_accounts")
       .upsert(
@@ -74,6 +61,7 @@ serve(async (req) => {
       );
 
     if (dbError) {
+      console.error("DB error:", dbError.message);
       return new Response(
         JSON.stringify({ success: false, error: dbError.message }),
         { headers: corsHeaders }
@@ -85,6 +73,7 @@ serve(async (req) => {
       { headers: corsHeaders }
     );
   } catch (err) {
+    console.error(err);
     return new Response(
       JSON.stringify({
         success: false,
