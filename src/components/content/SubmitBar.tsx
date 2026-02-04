@@ -54,18 +54,31 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No active session');
 
-      const { data, error } = await supabase.functions.invoke('submit-content', {
-        body: {
-          campaign_id: campaignId,
-          content_url: contentUrl,
-          platform: platform,
-        },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
-      if (error) throw new Error(error.message);
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/submit-content`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            campaign_id: campaignId,
+            content_url: contentUrl,
+            platform: platform,
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err);
+      }
+
+      const data = await res.json();
+
       if (data.error) throw new Error(data.error);
 
       toast.success('Submission successful!', {
@@ -73,7 +86,7 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
         description: 'Your content will now be tracked.',
       });
       
-      onNewSubmission(data.submission);
+      onNewSubmission(data);
 
       setManualUrl('');
       setSelectedContentId(null);
