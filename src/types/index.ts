@@ -1,35 +1,15 @@
-
-export type Platform = 'linkedin' | 'tiktok';
-
-export interface SocialPost {
+export type Campaign = {
   id: string;
-  platform: Platform;
-  type: 'post' | 'video';
-  content: string;
-  thumbnail?: string;
-  mediaUrl?: string;
-  embedHtml?: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  views?: number;
-  createdAt: Date;
-  author: {
-    name: string;
-    avatar: string;
-  };
-}
-
-export interface Campaign {
-  id: string;
+  created_at: string;
   title: string;
   description: string;
-  platform: "tiktok" | "linkedin";
-  reward_type: "fixed";
-  reward_value: number;
   start_date: string;
   end_date: string;
-  status: "active" | "inactive";
-  quote?: string | null;
-  created_at: string;
-}
+  platform: string;
+  status: string;
+  reward_type: string;
+  reward_value: number;
+  quote: string;
+  budget: number;
+  cpm_rate: number;
+};
