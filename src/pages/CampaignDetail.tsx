@@ -36,18 +36,6 @@ export default function CampaignDetail() {
           return;
         }
         setCampaign(campaignData);
-    
-        const { data: submissionData, error: submissionError } = await supabase
-          .rpc('get_campaign_submissions', { campaign_id_param: id });
-
-    
-        if (submissionError) {
-          console.error('Could not load submissions:', submissionError);
-          setSubmissions([]);
-        } else if (submissionData) {
-          setSubmissions(submissionData as Submission[]);
-        }
-    
         setLoading(false);
       }, [id]);
 
@@ -62,7 +50,6 @@ export default function CampaignDetail() {
           ...newSubmission,
         }
       ]);
-      loadCampaignData();
     };
 
     if (loading) {
