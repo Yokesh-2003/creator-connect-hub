@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "langchain/document_loaders/web/tiktok": "npm:langchain/document_loaders/web/tiktok"
+  }
+}
