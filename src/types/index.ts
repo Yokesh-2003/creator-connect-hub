@@ -12,12 +12,16 @@ export interface Submission {
     campaign_id: string;
     user_id: string;
     content_url: string;
-    platform: string;
+    platform: 'tiktok' | 'linkedin';
+    video_id?: string;
     view_count?: number;
     like_count?: number;
     comment_count?: number;
-    score?: number;
     created_at: string;
+    user?: {
+        username: string | null;
+        avatar_url: string | null;
+    };
 }
 
 export interface SocialAccount {

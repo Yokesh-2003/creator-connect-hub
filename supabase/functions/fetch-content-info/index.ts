@@ -29,76 +29,75 @@ serve(async (req) => {
 
     let views = 0;
     let likes = 0;
+    let text: string | null = null;
+    let thumbnail_url: string | null = null;
 
-    /* ========= TIKTOK ========= */
-    if (platform === "tiktok") {
-      const match = contentUrl.match(/\/video\/(\d+)/);
-      const videoId = match?.[1];
-
-      if (videoId) {
-        const res = await fetch(
-          "https://open.tiktokapis.com/v2/video/query/?fields=view_count,like_count",
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${Deno.env.get("TIKTOK_ACCESS_TOKEN")}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              filters: { video_ids: [videoId] },
-            }),
-          }
-        );
-
-        if (res.ok) {
-          const json = await res.json();
-          const video = json?.data?.videos?.[0];
-          views = video?.view_count ?? 0;
-          likes = video?.like_count ?? 0;
-        }
-      }
-    }
-
-    /* ========= LINKEDIN ========= */
     if (platform === "linkedin") {
-      const match = contentUrl.match(/activity-(\d+)/);
-      const activityId = match?.[1];
+        const match = contentUrl.match(/activity[-/:](\\d+)/);
+        const postId = match ? match[1] : null;
 
-      if (activityId) {
-        const res = await fetch(
-          `https://api.linkedin.com/v2/socialActions/urn:li:activity:${activityId}`,
-          {
+      if (postId) {
+        const postUrn = `urn:li:activity:${postId}`;
+        const projection = "(id,commentary,content(media(id,status,thumbnails~),article(source,thumbnail,title,description)))";
+        
+        const [postRes, socialActionsRes] = await Promise.all([
+          fetch(
+            `https://api.linkedin.com/v2/posts/${postUrn}?projection=${projection}`,
+            {
+              headers: {
+                Authorization: `Bearer ${Deno.env.get("LINKEDIN_ACCESS_TOKEN")}`,
+                "X-Restli-Protocol-Version": "2.0.0",
+                "LinkedIn-Version": "202405",
+              },
+            }
+          ),
+          fetch(`https://api.linkedin.com/v2/socialActions/${postUrn}`, {
             headers: {
               Authorization: `Bearer ${Deno.env.get("LINKEDIN_ACCESS_TOKEN")}`,
             },
-          }
-        );
+          }),
+        ]);
 
-        if (res.ok) {
-          const json = await res.json();
-          views = json?.viewsCount ?? 0;
-          likes = json?.likesCount ?? 0;
+        if (postRes.ok) {
+          const postData = await postRes.json();
+          text = postData?.commentary ?? null;
+
+          if (postData?.content?.media?.thumbnails?.elements?.length > 0) {
+            thumbnail_url = postData.content.media.thumbnails.elements.sort((a, b) => b.width - a.width)[0].url;
+          } else if (postData?.content?.article?.thumbnail) {
+            thumbnail_url = postData.content.article.thumbnail;
+          }
+        } else {
+            console.error("LinkedIn Post API Error:", await postRes.text());
+        }
+
+        if (socialActionsRes.ok) {
+          const socialData = await socialActionsRes.json();
+          likes = socialData?.likesSummary?.totalLikes ?? 0;
+        } else {
+           console.error("LinkedIn Social Actions API Error:", await socialActionsRes.text());
         }
       }
     }
 
-    /* ========= UPDATE BY ID (FIX) ========= */
     await supabase
       .from("submissions")
       .update({
         view_count: views,
         like_count: likes,
+        content_text: text,
+        thumbnail_url: thumbnail_url,
       })
       .eq("id", submissionId);
 
     return new Response(
-      JSON.stringify({ success: true, views, likes }),
+      JSON.stringify({ success: true, views, likes, text, thumbnail_url }),
       { headers: corsHeaders }
     );
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: corsHeaders }
-    );
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: corsHeaders,
+    });
   }
 });

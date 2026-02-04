@@ -41,7 +41,14 @@ export default function CampaignDetail() {
             console.error('Error fetching submissions:', submissionError);
             setSubmissions([]);
         } else {
-            setSubmissions(submissionData || []);
+            const formattedSubmissions = submissionData.map((s: any) => ({ 
+                ...s, 
+                user: {
+                    username: s.username,
+                    avatar_url: s.avatar_url
+                }
+            }));
+            setSubmissions(formattedSubmissions || []);
             if (submissionData && submissionData.length > 0) {
                 setCurrentSubmissionIndex(0);
             }
@@ -52,6 +59,16 @@ export default function CampaignDetail() {
 
     useEffect(() => {
         loadData();
+
+        const channel = supabase.channel('submissions')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, () => {
+                loadData();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     }, [loadData]);
 
     const handleNewSubmission = () => {
