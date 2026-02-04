@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Campaign, Submission } from '@/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Leaderboard from '@/components/content/Leaderboard';
 import SubmitBar from '@/components/content/SubmitBar';
 import CreatorContentFetcher from '@/components/content/CreatorContentFetcher';
-import VideoPlayer from '@/components/content/VideoPlayer'; // Import the VideoPlayer component
+import VideoPlayer from '@/components/content/VideoPlayer';
 
 export default function CampaignDetail() {
     const { id } = useParams();
@@ -84,11 +84,8 @@ export default function CampaignDetail() {
                         <CardTitle>{campaign.name}</CardTitle>
                         <Badge>{platform}</Badge>
                     </div>
-                    <CardDescription>{campaign.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p><strong>Goal:</strong> {campaign.goal}</p>
-                    <p><strong>Status:</strong> <span className="capitalize">{campaign.status}</span></p>
                 </CardContent>
             </Card>
 
