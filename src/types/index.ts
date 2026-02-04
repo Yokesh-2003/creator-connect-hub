@@ -1,3 +1,4 @@
+
 export type Platform = 'linkedin' | 'tiktok';
 
 export interface SocialPost {
@@ -17,4 +18,18 @@ export interface SocialPost {
     name: string;
     avatar: string;
   };
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
+  description: string;
+  platform: "tiktok" | "linkedin";
+  reward_type: "fixed";
+  reward_value: number;
+  start_date: string;
+  end_date: string;
+  status: "active" | "inactive";
+  quote?: string | null;
+  created_at: string;
 }
