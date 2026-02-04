@@ -19,6 +19,11 @@ const extractTikTokVideoId = (url: string): string | null => {
   return match ? match[1] : null;
 };
 
+const extractLinkedInVideoId = (url: string): string | null => {
+  const match = url.match(/(?:urn:li:activity:|activity-)(\d+)/);
+  return match ? match[1] : null;
+};
+
 const TikTokEmbed = ({ url, isActive }: { url: string; isActive: boolean }) => {
   const videoId = useMemo(() => extractTikTokVideoId(url), [url]);
 
@@ -42,6 +47,28 @@ const TikTokEmbed = ({ url, isActive }: { url: string; isActive: boolean }) => {
     <Skeleton className="w-full h-full bg-zinc-900" />
   );
 };
+
+const LinkedInEmbed = ({ url, isActive }: { url: string; isActive: boolean }) => {
+  const videoId = useMemo(() => extractLinkedInVideoId(url), [url]);
+  if (!videoId) {
+    return (
+      <div className="w-full h-full bg-black flex items-center justify-center text-white p-4 text-center">
+        <p>Invalid or unsupported LinkedIn URL.</p>
+      </div>
+    );
+  }
+  
+  return isActive ? (
+    <iframe 
+      src={`https://www.linkedin.com/embed/feed/update/urn:li:activity:${videoId}`}
+      className="w-full h-full border-0"
+      allowFullScreen
+      title="Embedded post"
+    ></iframe>
+    ) : (
+      <Skeleton className="w-full h-full bg-zinc-900" />
+  )
+}
 
 const VideoPlayer = ({ submissions, currentIndex, setCurrentIndex }: VideoPlayerProps): JSX.Element => {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -123,6 +150,8 @@ const VideoPlayer = ({ submissions, currentIndex, setCurrentIndex }: VideoPlayer
           >
             {submission.platform === 'tiktok' ? (
               <TikTokEmbed url={submission.content_url} isActive={index === currentIndex} />
+            ) : submission.platform === 'linkedin' ? (
+              <LinkedInEmbed url={submission.content_url} isActive={index === currentIndex} />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-white bg-black p-4 text-center">
                 <p>Submissions for '{submission.platform}' are not yet supported in this player.</p>
