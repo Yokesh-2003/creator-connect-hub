@@ -12,16 +12,24 @@ interface SubmissionPayload {
 }
 
 Deno.serve(async (req) => {
+  console.log("submit-content invoked", {
+    hasAuthHeader: !!req.headers.get('Authorization')
+  });
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+
     const supabaseUser = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
+      authHeader
+        ? { global: { headers: { Authorization: authHeader } } }
+        : {}
+    );
 
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
 
