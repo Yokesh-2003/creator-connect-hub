@@ -8,8 +8,14 @@ export async function submitContent(
   contentType: 'video' | 'post' | 'reel' | 'short' = 'video'
 ): Promise<{ success: boolean; error?: string; submissionId?: string }> {
   try {
-    // Use a server-side function to verify ownership and capture metrics
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not authenticated");
+
     const { data, error } = await supabase.functions.invoke('submit-content', {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
       body: { campaignId, socialAccountId, contentUrl, contentType },
     });
 
