@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
         global: {
           headers: {
             authorization: req.headers.get("authorization")!,
-            apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
           },
         },
       }
