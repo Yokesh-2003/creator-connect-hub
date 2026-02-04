@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { Campaign } from "@/types";
+import type { Campaign } from "@/types";
 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -23,8 +23,8 @@ export default function Campaigns() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error(error);
-        setError("Failed to load campaigns");
+        console.error("SUPABASE ERROR 👉", error);
+        setError(error.message);
         setCampaigns([]);
       } else {
         setCampaigns(data ?? []);
