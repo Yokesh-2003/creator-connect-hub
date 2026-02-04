@@ -63,6 +63,7 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${session.access_token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_ANON_KEY
           },
           body: JSON.stringify({
             campaign_id: campaignId,
