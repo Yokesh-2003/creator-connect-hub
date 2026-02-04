@@ -12,31 +12,35 @@ interface SubmissionPayload {
 }
 
 Deno.serve(async (req) => {
-  console.log("submit-content invoked", {
-    hasAuthHeader: !!req.headers.get('Authorization')
-  });
-
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  try {
-    const authHeader = req.headers.get('Authorization');
+  console.log("submit-content POST invoked", {
+    hasAuthHeader: !!req.headers.get("authorization"),
+  });
 
+  try {
     const supabaseUser = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      authHeader
-        ? { global: { headers: { Authorization: authHeader } } }
-        : {}
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      {
+        global: {
+          headers: {
+            authorization: req.headers.get("authorization")!,
+            apikey: Deno.env.get("SUPABASE_ANON_KEY")!,
+          },
+        },
+      }
     );
 
-    const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
+    const { data: { user }, error: userError } =
+      await supabaseUser.auth.getUser();
 
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
