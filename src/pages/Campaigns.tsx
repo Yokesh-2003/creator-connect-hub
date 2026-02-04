@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Navbar } from "@/components/layout/Navbar";
@@ -5,13 +6,26 @@ import { Footer } from "@/components/layout/Footer";
 import { motion } from "framer-motion";
 import type { Campaign } from "@/types";
 
-// Force redeploy to clear cache
-
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    // This is the definitive fix for the back-forward cache issue.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        // Page is from bfcache, force a reload
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
