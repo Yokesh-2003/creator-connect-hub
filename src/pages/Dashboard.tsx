@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FaTiktok, FaLinkedin, FaYoutube, FaInstagram } from 'react-icons/fa';
 import { Link2, Eye, DollarSign, Trophy, Plus, RefreshCw, ExternalLink } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { initiateTikTokOAuth, disconnectTikTok } from '@/lib/oauth/tiktok';
 import {initiateLinkedInOAuth,handleLinkedInCallback,disconnectLinkedIn,} from "@/lib/oauth/linkedin";
 import { getUserSubmissions } from '@/lib/services/submissions';
