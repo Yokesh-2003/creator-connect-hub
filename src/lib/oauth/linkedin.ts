@@ -15,7 +15,7 @@ export function initiateLinkedInOAuth() {
     "&client_id=" + CLIENT_ID +
     "&redirect_uri=" + encodeURIComponent(REDIRECT_URI) +
     "&state=" + state +
-    "&scope=" + encodeURIComponent("openid profile email r_member_social");
+    "&scope=" + encodeURIComponent("openid profile email");
 
 
   window.location.assign(authUrl);
