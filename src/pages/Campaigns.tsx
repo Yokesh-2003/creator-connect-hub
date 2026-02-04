@@ -76,7 +76,7 @@ export default function Campaigns() {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       
-      <main className="container mx-auto px-4 py-8 pb-20 flex-1">
+      <main className="container mx-auto px-4 pt-32 pb-20 flex-1">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
