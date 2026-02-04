@@ -5,6 +5,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { motion } from "framer-motion";
 import type { Campaign } from "@/types";
+import { PlatformIcon } from "@/components/PlatformIcon";
 
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -118,7 +119,8 @@ export default function Campaigns() {
                 className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
               >
                 {/* Platform Badge Header */}
-                <div className={`${getPlatformClass(campaign.platform)} px-4 py-3`}>
+                <div className={`${getPlatformClass(campaign.platform)} px-4 py-3 flex items-center`}>
+                  <PlatformIcon platform={campaign.platform} className="h-5 w-5 text-white mr-2" />
                   <span className="text-white font-semibold text-sm uppercase tracking-wide">
                     {campaign.platform}
                   </span>
