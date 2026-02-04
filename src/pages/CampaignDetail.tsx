@@ -97,8 +97,8 @@ export default function CampaignDetail() {
             </Card>
 
             <CreatorContentFetcher
-              platform={platform}
-              render={({ contentFetcherState }) => (
+              platform={platform}>
+              {(contentFetcherState) => (
                 <SubmitBar
                   campaignId={id!}
                   platform={platform}
@@ -106,7 +106,7 @@ export default function CampaignDetail() {
                   contentFetcher={contentFetcherState}
                 />
               )}
-            />
+            </CreatorContentFetcher>
             
             <Separator className="my-8" />
 
