@@ -54,8 +54,15 @@ Deno.serve(async (req) => {
       campaign_id,
       user_id: user.id,
       content_url,
-      platform,
+      content_platform: platform,
     };
+    
+    console.log("Submitting content", {
+      campaign_id,
+      user_id: user.id,
+      content_url,
+      platform
+    });
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,

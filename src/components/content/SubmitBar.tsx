@@ -51,12 +51,18 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
     const submissionToast = toast.loading('Submitting your post...');
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session');
+
       const { data, error } = await supabase.functions.invoke('submit-content', {
         body: {
           campaign_id: campaignId,
           content_url: contentUrl,
           platform: platform,
         },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) throw new Error(error.message);
