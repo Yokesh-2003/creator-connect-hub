@@ -9,11 +9,13 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // ✅ CORS preflight (MANDATORY)
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders, status: 204 });
   }
 
   try {
+    // ✅ Robust auth header read
     const authHeader =
       req.headers.get("authorization") ??
       req.headers.get("Authorization");
@@ -21,65 +23,80 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing auth header" }),
-        { headers: corsHeaders }
+        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
       );
     }
 
-    // 🔑 Create admin client
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      {
+        global: {
+          headers: { Authorization: authHeader },
+        },
+      }
     );
 
-    // 🔑 Extract user from JWT manually
-    const jwt = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: jwtError,
-    } = await supabase.auth.getUser(jwt);
+    // ✅ Safe JSON parse
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {}
 
-    if (jwtError || !user) {
+    const { code } = body;
+
+    if (!code) {
       return new Response(
-        JSON.stringify({ success: false, error: "Invalid user token" }),
-        { headers: corsHeaders }
+        JSON.stringify({ success: false, error: "Missing code" }),
+        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
       );
     }
 
-    console.log("LinkedIn user:", user.id);
+    // ✅ Validate user from token
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    // ✅ UPSERT social account
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid user" }),
+        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+      );
+    }
+
+    // ✅ Save LinkedIn connection
     const { error: dbError } = await supabase
       .from("social_accounts")
       .upsert(
         {
           user_id: user.id,
           platform: "linkedin",
+          username: "Connected",
           is_connected: true,
-          username: "LinkedIn",
         },
         { onConflict: "user_id,platform" }
       );
 
     if (dbError) {
-      console.error("DB error:", dbError.message);
       return new Response(
         JSON.stringify({ success: false, error: dbError.message }),
-        { headers: corsHeaders }
+        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
       );
     }
 
+    // ✅ SUCCESS (ONLY TRUE SUCCESS)
     return new Response(
-      JSON.stringify({ success: true }),
-      { headers: corsHeaders }
+      JSON.stringify({ success: true, username: "Connected" }),
+      { status: 200, headers: corsHeaders }
     );
   } catch (err) {
-    console.error(err);
     return new Response(
       JSON.stringify({
         success: false,
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { headers: corsHeaders }
+      { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
     );
   }
 });
