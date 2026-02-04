@@ -10,7 +10,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -19,7 +19,10 @@ serve(async (req) => {
       req.headers.get("Authorization");
 
     if (!authHeader) {
-      throw new Error("Missing auth header");
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing auth header" }),
+        { headers: corsHeaders }
+      );
     }
 
     const supabase = createClient(
@@ -35,16 +38,15 @@ serve(async (req) => {
     let body: any = {};
     try {
       body = await req.json();
-    } catch {
-      //
-    }
+    } catch {}
 
     const { code } = body;
 
     if (!code) {
-      console.error("❌ No LinkedIn code received");
-    } else {
-      console.log("✅ LinkedIn OAuth code received:", code);
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing code" }),
+        { headers: corsHeaders }
+      );
     }
 
     const {
@@ -55,25 +57,32 @@ serve(async (req) => {
     if (userError || !user) {
       return new Response(
         JSON.stringify({ success: false, error: "Invalid user" }),
-        { status: 200, headers: corsHeaders }
+        { headers: corsHeaders }
       );
     }
 
-    await supabase
+    const { error: dbError } = await supabase
       .from("social_accounts")
       .upsert(
         {
           user_id: user.id,
           platform: "linkedin",
-          username: "Connected",
           is_connected: true,
+          username: "LinkedIn",
         },
         { onConflict: "user_id,platform" }
       );
 
+    if (dbError) {
+      return new Response(
+        JSON.stringify({ success: false, error: dbError.message }),
+        { headers: corsHeaders }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: true }),
-      { status: 200, headers: corsHeaders }
+      { headers: corsHeaders }
     );
   } catch (err) {
     return new Response(
@@ -81,7 +90,7 @@ serve(async (req) => {
         success: false,
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 200, headers: corsHeaders }
+      { headers: corsHeaders }
     );
   }
 });
