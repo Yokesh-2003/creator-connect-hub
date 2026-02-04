@@ -1,140 +1,136 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { supabase } from "@/lib/supabase";
+import { useEffect, useRef, useMemo } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 
-declare global {
-  interface Window { instgrm?: any; twttr?: any; tiktok?: any; }
+interface Submission {
+  id: string;
+  content_url: string;
+  platform: 'tiktok' | 'linkedin';
 }
 
-const SafeEmbedRenderer = ({ htmlContent }: { htmlContent: string }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+interface VideoPlayerProps {
+  submissions: Submission[];
+  currentIndex: number;
+  setCurrentIndex: Dispatch<SetStateAction<number>>;
+}
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !htmlContent) return;
-
-    container.innerHTML = '';
-    const fragment = document.createRange().createContextualFragment(htmlContent);
-    container.appendChild(fragment);
-
-    const scripts = Array.from(container.querySelectorAll('script'));
-    scripts.forEach(oldScript => {
-      const newScript = document.createElement('script');
-      Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-      newScript.textContent = oldScript.textContent;
-      if (oldScript.src) {
-        newScript.onload = () => {
-          if (window.instgrm) window.instgrm.Embeds.process();
-          if (window.twttr) window.twttr.widgets.load();
-        };
-      }
-      oldScript.parentNode?.replaceChild(newScript, oldScript);
-    });
-  }, [htmlContent]);
-
-  return <div ref={containerRef} className="w-full h-full flex items-center justify-center" />;
+const extractTikTokVideoId = (url: string): string | null => {
+  const match = url.match(/(?:video\/|v\/)(\d+)/);
+  return match ? match[1] : null;
 };
 
+const TikTokEmbed = ({ url, isActive }: { url: string; isActive: boolean }) => {
+  const videoId = useMemo(() => extractTikTokVideoId(url), [url]);
 
-const SubmissionPlayer = ({ submission, isVisible }: { submission: any; isVisible: boolean }) => {
-  const [embedHtml, setEmbedHtml] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  if (!videoId) {
+    return (
+      <div className="w-full h-full bg-black flex items-center justify-center text-white p-4 text-center">
+        <p>Invalid or unsupported TikTok URL.</p>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (!isVisible || !submission?.content_url) return;
-
-    const fetchEmbed = async () => {
-      setLoading(true);
-      setError(null);
-      setEmbedHtml(null);
-
-      try {
-        const { data, error: functionError } = await supabase.functions.invoke('fetch-content-info', {
-          body: { url: submission.content_url },
-        });
-
-        if (functionError) throw new Error(functionError.message);
-        if (data?.html) {
-          setEmbedHtml(data.html);
-        } else {
-          throw new Error("Could not generate video embed. The URL might be private, invalid, or from an unsupported platform.");
-        }
-      } catch (e: any) {
-        setError(e.message || "Failed to load video.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmbed();
-  }, [submission?.content_url, isVisible]);
-
-  return (
-    <div className="relative w-full h-full bg-black rounded-lg overflow-hidden">
-      {loading && <Skeleton className="w-full h-full bg-muted-foreground/20" />}
-      {!loading && error &&
-        <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
-          <p className="font-semibold">Unable to Load Content</p>
-          <p className="text-xs text-muted-foreground mt-1 px-4">{error}</p>
-        </div>
-      }
-      {!loading && embedHtml &&
-        <SafeEmbedRenderer key={submission.id} htmlContent={embedHtml} />
-      }
-    </div>
+  return isActive ? (
+    <iframe
+      key={videoId}
+      className="w-full h-full border-0"
+      src={`https://www.tiktok.com/embed/v2/${videoId}?autoplay=1&mute=1`}
+      allow="autoplay; encrypted-media;"
+      allowFullScreen
+    ></iframe>
+  ) : (
+    <Skeleton className="w-full h-full bg-zinc-900" />
   );
 };
 
-interface VideoPlayerProps {
-  submissions: any[];
-  currentIndex: number;
-  setCurrentIndex: (index: number) => void;
-}
-
-const VideoPlayer = ({ submissions, currentIndex, setCurrentIndex }: VideoPlayerProps) => {
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+const VideoPlayer = ({ submissions, currentIndex, setCurrentIndex }: VideoPlayerProps): JSX.Element => {
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const videoRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    itemRefs.current = itemRefs.current.slice(0, submissions.length);
+    videoRefs.current = videoRefs.current.slice(0, submissions.length);
   }, [submissions]);
 
-  const handleScroll = useCallback(() => {
+  useEffect(() => {
+    const videoElement = videoRefs.current[currentIndex];
+    if (videoElement) {
+      videoElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
+  }, [currentIndex]);
+
+  useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
-    const scrollPosition = container.scrollTop;
-    const itemHeight = container.clientHeight;
-    const newIndex = Math.round(scrollPosition / itemHeight);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const indexStr = (entry.target as HTMLElement).dataset.index;
+            if (indexStr) {
+              const index = parseInt(indexStr, 10);
+              if (index !== currentIndex) {
+                setCurrentIndex(index);
+              }
+            }
+          }
+        }
+      },
+      {
+        root: container,
+        threshold: 0.8,
+      }
+    );
 
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < submissions.length) {
-        setCurrentIndex(newIndex);
-    }
-  }, [currentIndex, submissions.length, setCurrentIndex]);
+    const currentRefs = videoRefs.current;
+    currentRefs.forEach((ref) => {
+      if (ref) {
+        observer.observe(ref);
+      }
+    });
 
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    container?.addEventListener('scroll', handleScroll);
-    return () => container?.removeEventListener('scroll', handleScroll);
-  }, [handleScroll]);
+    return () => {
+      currentRefs.forEach((ref) => {
+        if (ref) {
+          observer.unobserve(ref);
+        }
+      });
+    };
+  }, [submissions, currentIndex, setCurrentIndex]);
   
+  if (submissions.length === 0) {
+    return (
+      <div className="h-[80vh] w-full max-w-sm mx-auto bg-black rounded-lg flex items-center justify-center text-muted-foreground">
+        <p>No submissions yet. Be the first!</p>
+      </div>
+    );
+  }
+
   return (
-    <div 
-      ref={scrollContainerRef} 
-      className="w-full h-full overflow-y-auto snap-y snap-mandatory rounded-lg bg-background-alt"
+    <div
+      ref={scrollContainerRef}
+      className="h-[80vh] w-full max-w-sm mx-auto overflow-y-scroll snap-y snap-mandatory scroll-smooth rounded-lg bg-black"
     >
-      {submissions.map((sub, index) => (
-        <div 
-          key={sub.id} 
-          ref={el => itemRefs.current[index] = el} 
-          className="h-full w-full snap-start flex items-center justify-center"
-        >
-          <div className="w-full h-full max-w-sm aspect-[9/16] m-auto">
-            <SubmissionPlayer submission={sub} isVisible={index === currentIndex} />
+      {submissions.map((submission, index) => (
+          <div
+            key={submission.id}
+            ref={(el) => (videoRefs.current[index] = el)}
+            data-index={index}
+            className="h-full w-full snap-start flex-shrink-0 relative"
+          >
+            {submission.platform === 'tiktok' ? (
+              <TikTokEmbed url={submission.content_url} isActive={index === currentIndex} />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white bg-black p-4 text-center">
+                <p>Submissions for '{submission.platform}' are not yet supported in this player.</p>
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        ))
+      }
     </div>
   );
 };

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import Leaderboard from '@/components/content/Leaderboard';
 import SubmitBar from '@/components/content/SubmitBar';
-import CreatorContentFetcher from '@/components/content/CreatorContentFetcher';
 import VideoPlayer from '@/components/content/VideoPlayer';
 
 export default function CampaignDetail() {
@@ -89,32 +88,22 @@ export default function CampaignDetail() {
                 </CardContent>
             </Card>
 
-            <CreatorContentFetcher
-              platform={platform}>
-              {(contentFetcherState) => (
-                <SubmitBar
-                  campaignId={id!}
-                  platform={platform}
-                  onNewSubmission={handleNewSubmission}
-                  contentFetcher={contentFetcherState}
-                />
-              )}
-            </CreatorContentFetcher>
+            <SubmitBar
+              campaignId={id!}
+              platform={platform}
+              onNewSubmission={handleNewSubmission}
+            />
             
             <Separator className="my-8" />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="md:col-span-2">
                 <h2 className="text-2xl font-bold mb-4">Submissions</h2>
-                {submissions.length > 0 ? (
-                    <VideoPlayer 
-                        submissions={submissions} 
-                        currentIndex={currentSubmissionIndex} 
-                        setCurrentIndex={setCurrentSubmissionIndex} 
-                    />
-                ) : (
-                    <p>No submissions yet. Be the first!</p>
-                )}
+                <VideoPlayer 
+                    submissions={submissions} 
+                    currentIndex={currentSubmissionIndex} 
+                    setCurrentIndex={setCurrentSubmissionIndex} 
+                />
               </div>
 
               <div>

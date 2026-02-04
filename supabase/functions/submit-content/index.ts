@@ -1,71 +1,34 @@
-
-// supabase/functions/submit-content/index.ts
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-
-// The payload now matches the fields sent from the frontend
-interface SubmissionPayload {
-  campaign_id: string;
-  content_url: string;
-  platform: 'tiktok' | 'linkedin';
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  console.log("submit-content POST invoked", {
-    hasAuthHeader: !!req.headers.get("authorization"),
-  });
-
   try {
-    const supabaseUser = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      {
-        global: {
-          headers: {
-            authorization: req.headers.get("authorization")!,
-          },
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } =
-      await supabaseUser.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const authHeader = req.headers.get('authorization')
+    if (!authHeader) {
+      return new Response('Unauthorized', { status: 401 })
     }
 
-    const payload: SubmissionPayload = await req.json();
-    const { campaign_id, content_url, platform } = payload;
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    )
 
-    if (!campaign_id || !content_url || !platform) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAuth.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    )
+
+    if (authError || !user) {
+      return new Response('Unauthorized', { status: 401 })
     }
 
-    const dataToInsert = {
-      campaign_id,
-      user_id: user.id,
-      content_url,
-      content_platform: platform,
-    };
-    
-    console.log("Submitting content", {
-      campaign_id,
-      user_id: user.id,
-      content_url,
-      platform
-    });
+    const body = await req.json()
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -74,28 +37,30 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabaseAdmin
       .from('submissions')
-      .insert(dataToInsert)
+      .insert({
+        campaign_id: body.campaign_id,
+        user_id: user.id,          // ✅ FIX
+        content_url: body.content_url,
+        platform: body.platform,
+      })
       .select()
-      .single();
+      .single()
 
     if (error) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify(error), {
+        status: 400,
+        headers: corsHeaders,
+      })
     }
 
-    return new Response(
-      JSON.stringify(data),
-      { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (e) {
-    console.error('An unexpected error occurred:', e);
-    const errorMessage = e instanceof Error ? e.message : 'An internal server error occurred.';
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify(data), {
+      status: 201,
+      headers: corsHeaders,
     })
+  } catch (e) {
+    return new Response(
+      JSON.stringify({ error: String(e) }),
+      { status: 500, headers: corsHeaders }
+    )
   }
 })
