@@ -67,7 +67,7 @@ export default function SubmitBar({ campaignId, platform, onNewSubmission, conte
         description: 'Your content will now be tracked.',
       });
       
-      onNewSubmission(data);
+      onNewSubmission(data.submission);
 
       setManualUrl('');
       setSelectedContentId(null);
