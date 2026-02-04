@@ -6,6 +6,13 @@ export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
+  }, []);
 
   useEffect(() => {
     const fetchCampaigns = async () => {
@@ -66,6 +73,26 @@ export default function Campaigns() {
               <blockquote className="mt-3 italic text-sm text-muted-foreground">
                 “{c.quote}”
               </blockquote>
+            )}
+
+            {user ? (
+              <button
+                className="mt-4 w-full rounded bg-black text-white py-2 hover:opacity-90"
+                onClick={() => {
+                  console.log("Join campaign:", c.id);
+                }}
+              >
+                Join Campaign
+              </button>
+            ) : (
+              <button
+                className="mt-4 w-full rounded border py-2"
+                onClick={() => {
+                  window.location.href = "/auth";
+                }}
+              >
+                Sign in to Join
+              </button>
             )}
           </div>
         ))}
