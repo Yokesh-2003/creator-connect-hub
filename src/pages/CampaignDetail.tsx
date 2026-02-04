@@ -16,40 +16,46 @@ export default function CampaignDetail() {
     const [loading, setLoading] = useState(true);
     const [currentSubmissionIndex, setCurrentSubmissionIndex] = useState(0);
 
-    const loadCampaignData = useCallback(async () => {
+    const loadData = useCallback(async () => {
         if (!id) {
-          setLoading(false);
-          return;
+            setLoading(false);
+            return;
         }
         setLoading(true);
-    
-        const { data: campaignData, error: campaignError } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('id', id)
-          .single();
-    
+
+        const [campaignResult, submissionsResult] = await Promise.all([
+            supabase.from('campaigns').select('*').eq('id', id).single(),
+            supabase.rpc('get_campaign_submissions', { campaign_id_param: id })
+        ]);
+
+        const { data: campaignData, error: campaignError } = campaignResult;
         if (campaignError || !campaignData) {
           console.error(campaignError?.message || 'Campaign not found.');
           setCampaign(null);
-          setLoading(false);
-          return;
+        } else {
+          setCampaign(campaignData);
         }
-        setCampaign(campaignData);
+
+        const { data: submissionData, error: submissionError } = submissionsResult;
+        if (submissionError) {
+            console.error('Error fetching submissions:', submissionError);
+            setSubmissions([]);
+        } else {
+            setSubmissions(submissionData || []);
+            if (submissionData && submissionData.length > 0) {
+                setCurrentSubmissionIndex(0);
+            }
+        }
+
         setLoading(false);
-      }, [id]);
+    }, [id]);
 
     useEffect(() => {
-        loadCampaignData();
-    }, [loadCampaignData]);
+        loadData();
+    }, [loadData]);
 
-    const handleNewSubmission = (newSubmission: Submission) => {
-      setSubmissions(prevSubmissions => [
-        ...prevSubmissions,
-        {
-          ...newSubmission,
-        }
-      ]);
+    const handleNewSubmission = () => {
+      loadData();
     };
 
     if (loading) {
@@ -95,7 +101,7 @@ export default function CampaignDetail() {
 
               <div>
                 <h2 className="text-2xl font-bold mb-4">Leaderboard</h2>
-                <Leaderboard submissions={submissions} />
+                <Leaderboard submissions={submissions} onSelectSubmission={setCurrentSubmissionIndex} />
               </div>
             </div>
         </div>
