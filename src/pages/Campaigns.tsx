@@ -69,7 +69,7 @@ export default function Campaigns() {
       case 'linkedin': return 'platform-linkedin';
       case 'youtube': return 'platform-youtube';
       case 'instagram': return 'platform-instagram';
-      default: return 'bg-primary';
+      default: return 'border-primary text-primary';
     }
   };
 
@@ -116,18 +116,17 @@ export default function Campaigns() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300"
+                className={`group bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 border-t-4 ${getPlatformClass(campaign.platform)}`}
               >
-                {/* Platform Badge Header */}
-                <div className={`${getPlatformClass(campaign.platform)} px-4 py-3 flex items-center`}>
-                  <PlatformIcon platform={campaign.platform} className="h-5 w-5 text-white mr-2" />
-                  <span className="text-white font-semibold text-sm uppercase tracking-wide">
-                    {campaign.platform}
-                  </span>
-                </div>
-
                 {/* Content */}
                 <div className="p-5">
+                  <div className={`flex items-center mb-3 ${getPlatformClass(campaign.platform)}`}>
+                    <PlatformIcon platform={campaign.platform} className="h-5 w-5 mr-2" />
+                    <span className="font-semibold text-sm uppercase tracking-wide">
+                      {campaign.platform}
+                    </span>
+                  </div>
+
                   <h2 className="text-xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
                     {campaign.title}
                   </h2>

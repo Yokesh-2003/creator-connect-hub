@@ -141,19 +141,23 @@
   }
 
   .platform-tiktok {
-    @apply bg-[hsl(349,100%,50%)];
+    border-color: hsl(var(--tiktok));
+    color: hsl(var(--tiktok));
   }
 
   .platform-linkedin {
-    @apply bg-[hsl(201,100%,35%)];
+    border-color: hsl(var(--linkedin));
+    color: hsl(var(--linkedin));
   }
 
   .platform-youtube {
-    @apply bg-[hsl(0,100%,50%)];
+    border-color: hsl(var(--youtube));
+    color: hsl(var(--youtube));
   }
 
   .platform-instagram {
-    background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+    border-color: hsl(var(--instagram));
+    color: hsl(var(--instagram));
   }
 }
 
