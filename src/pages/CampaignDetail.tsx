@@ -43,9 +43,8 @@ export default function CampaignDetail() {
         setCampaign(campaignData);
     
         const { data: submissionData, error: submissionError } = await supabase
-          .from('submissions')
-          .select('id, content_url, view_count, creator_name, created_at')
-          .eq('campaign_id', id);
+          .rpc('get_campaign_submissions', { campaign_id_param: id });
+
     
         if (submissionError) {
           console.error('Could not load submissions:', submissionError);
@@ -66,12 +65,8 @@ export default function CampaignDetail() {
         ...prevSubmissions,
         {
           ...newSubmission,
-          // The edge function returns the direct DB object. We might need to map it.
-          // For now, let's assume the returned object matches what we need or adjust here.
-          // e.g., creator_name might not be available immediately.
         }
       ]);
-      // Optionally, refetch all data to ensure consistency
       loadCampaignData();
     };
 
