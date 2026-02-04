@@ -8,14 +8,22 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function getUserIdFromJwt(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
-  // ✅ CORS preflight (MANDATORY)
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders, status: 204 });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
-    // ✅ Robust auth header read
     const authHeader =
       req.headers.get("authorization") ??
       req.headers.get("Authorization");
@@ -23,54 +31,41 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing auth header" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+    const userId = getUserIdFromJwt(authHeader);
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid JWT" }),
+        { status: 200, headers: corsHeaders }
       );
     }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      {
-        global: {
-          headers: { Authorization: authHeader },
-        },
-      }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // ✅ Safe JSON parse
     let body: any = {};
     try {
       body = await req.json();
     } catch {}
 
-    const { code } = body;
-
-    if (!code) {
+    if (!body.code) {
       return new Response(
         JSON.stringify({ success: false, error: "Missing code" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+        { status: 200, headers: corsHeaders }
       );
     }
 
-    // ✅ Validate user from token
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Invalid user" }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
-      );
-    }
-
-    // ✅ Save LinkedIn connection
-    const { error: dbError } = await supabase
+    const { error } = await supabase
       .from("social_accounts")
       .upsert(
         {
-          user_id: user.id,
+          user_id: userId,
           platform: "linkedin",
           username: "Connected",
           is_connected: true,
@@ -78,16 +73,15 @@ serve(async (req) => {
         { onConflict: "user_id,platform" }
       );
 
-    if (dbError) {
+    if (error) {
       return new Response(
-        JSON.stringify({ success: false, error: dbError.message }),
-        { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+        JSON.stringify({ success: false, error: error.message }),
+        { status: 200, headers: corsHeaders }
       );
     }
 
-    // ✅ SUCCESS (ONLY TRUE SUCCESS)
     return new Response(
-      JSON.stringify({ success: true, username: "Connected" }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: corsHeaders }
     );
   } catch (err) {
@@ -96,7 +90,7 @@ serve(async (req) => {
         success: false,
         error: err instanceof Error ? err.message : "Unknown error",
       }),
-      { status: 200, headers: corsHeaders } // ✅ FORCE 2xx
+      { status: 200, headers: corsHeaders }
     );
   }
 });
