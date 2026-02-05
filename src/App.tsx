@@ -11,7 +11,6 @@ import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import Leaderboard from "@/pages/Leaderboard";
 import NotFound from "@/pages/NotFound";
-import OAuthCallback from "@/pages/OAuthCallback";
 import LinkedInCallback from "@/pages/LinkedInCallback";
 
 function App() {
@@ -27,7 +26,6 @@ function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
-        <Route path="/auth/tiktok/callback" element={<OAuthCallback />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
