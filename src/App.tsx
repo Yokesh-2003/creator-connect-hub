@@ -1,3 +1,4 @@
+
 import { Route, Routes } from "react-router-dom";
 import Index from "@/pages/Index";
 import Auth from "@/pages/Auth";
@@ -11,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner";
 import Leaderboard from "@/pages/Leaderboard";
 import NotFound from "@/pages/NotFound";
 import OAuthCallback from "@/pages/OAuthCallback";
+import LinkedInCallback from "@/pages/LinkedInCallback";
 
 function App() {
   return (
@@ -24,7 +26,7 @@ function App() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
-        <Route path="/auth/linkedin/callback" element={<OAuthCallback />} />
+        <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
         <Route path="/auth/tiktok/callback" element={<OAuthCallback />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

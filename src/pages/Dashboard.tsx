@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,11 +10,9 @@ import { FaTiktok, FaLinkedin, FaYoutube, FaInstagram } from 'react-icons/fa';
 import { Link2, Eye, DollarSign, Trophy, Plus, RefreshCw, ExternalLink } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { initiateTikTokOAuth, disconnectTikTok } from '@/lib/oauth/tiktok';
-import {initiateLinkedInOAuth,handleLinkedInCallback,disconnectLinkedIn,} from "@/lib/oauth/linkedin";
 import { getUserSubmissions } from '@/lib/services/submissions';
 import { refreshSubmissionMetrics } from '@/lib/services/metrics';
 import { useToast } from '@/hooks/use-toast';
-
 
 const platforms = [
   {
@@ -48,7 +47,6 @@ const platforms = [
   },
 ];
 
-
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -59,128 +57,87 @@ export default function Dashboard() {
   const [loadingAccounts, setLoadingAccounts] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
- useEffect(() => {
-  if (!loading && !user) {
-    navigate("/auth");
-  }
-}, [user, loading, navigate]);
-
-
-useEffect(() => {
-  if (!user) return;
-
-  const handleTikTokCallback = async () => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const returnedState = params.get("state");
-    const storedState = sessionStorage.getItem("tiktok_oauth_state");
-
-   if (!code || !storedState || returnedState !== storedState) return;
-
-
-    sessionStorage.removeItem("tiktok_oauth_state");
-
-    const { error } = await supabase
-      .from("social_accounts")
-      .upsert(
-        {
-          user_id: user.id,
-          platform: "tiktok",
-          username: "Connected",
-          is_connected: true,
-        } as any,
-        { onConflict: "user_id,platform" }
-      );
-
-    if (error) {
-      console.error("TikTok upsert failed:", error);
-      return;
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate("/auth");
     }
+  }, [user, loading, navigate]);
 
-    await loadSocialAccounts();
+  useEffect(() => {
+    if (!user) return;
 
-    toast({
-      title: "TikTok connected",
-      description: "Your TikTok account was successfully connected",
-    });
+    const handleTikTokCallback = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      const returnedState = params.get("state");
+      const storedState = sessionStorage.getItem("tiktok_oauth_state");
 
-    window.history.replaceState({}, document.title, "/dashboard");
-  };
+      if (!code || !storedState || returnedState !== storedState) return;
 
-  handleTikTokCallback();
-}, [user]);
-  
-   useEffect(() => {
-  if (!user) return;
+      sessionStorage.removeItem("tiktok_oauth_state");
 
-  const storedState = sessionStorage.getItem("linkedin_oauth_state");
-  if (!storedState) return;
+      const { error } = await supabase
+        .from("social_accounts")
+        .upsert(
+          {
+            user_id: user.id,
+            platform: "tiktok",
+            username: "Connected",
+            is_connected: true,
+          } as any,
+          { onConflict: "user_id,platform" }
+        );
 
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get("code");
-  const state = params.get("state");
+      if (error) {
+        console.error("TikTok upsert failed:", error);
+        return;
+      }
 
-  if (!code || state !== storedState) return;
-
-  const run = async () => {
-    const result = await handleLinkedInCallback(code, state);
-
-    if (result.success) {
       await loadSocialAccounts();
 
       toast({
-        title: "LinkedIn connected",
-        description: "Your LinkedIn account was successfully connected",
+        title: "TikTok connected",
+        description: "Your TikTok account was successfully connected",
       });
 
       window.history.replaceState({}, document.title, "/dashboard");
-    } else {
-      toast({
-        title: "LinkedIn connection failed",
-        description: result.error || "OAuth failed",
-        variant: "destructive",
-      });
-    }
-  };
+    };
 
-  run();
-}, [user]);
-
+    handleTikTokCallback();
+  }, [user]);
 
   useEffect(() => {
-  if (!loading && user) {
-    loadSocialAccounts();
-    loadSubmissions();
-  }
-}, [loading, user]);
-  
+    if (!loading && user) {
+      loadSocialAccounts();
+      loadSubmissions();
+    }
+  }, [loading, user]);
 
+  const loadSocialAccounts = async () => {
+    if (!user) return;
 
-const loadSocialAccounts = async () => {
-  if (!user) return;
+    setLoadingAccounts(true);
 
-  setLoadingAccounts(true);
+    const { data } = await supabase
+      .from('social_accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_connected', true);
 
- const { data } = await supabase
-  .from('social_accounts')
-  .select('*')
-  .eq('user_id', user.id)
-  .eq('is_connected', true);
+    const accountsMap: Record<string, any> = {};
+    data?.forEach((account) => {
+      accountsMap[account.platform] = account;
+    });
 
-  const accountsMap: Record<string, any> = {};
-  data?.forEach((account) => {
-    accountsMap[account.platform] = account;
-  });
+    setSocialAccounts(accountsMap);
+    setStats(prev => ({ ...prev, accounts: data?.length || 0 }));
 
-  setSocialAccounts(accountsMap);
-  setStats(prev => ({ ...prev, accounts: data?.length || 0 }));
-
-  setLoadingAccounts(false); 
-};
+    setLoadingAccounts(false);
+  };
 
   const loadSubmissions = async () => {
     if (!user) return;
-    
+
     const subs = await getUserSubmissions();
     setSubmissions(subs || []);
 
@@ -201,39 +158,50 @@ const loadSocialAccounts = async () => {
       campaigns: campaignIds.size,
     }));
   };
-const initiateTikTokSandboxOAuth = () => {
-  const state = crypto.randomUUID();
-  sessionStorage.setItem("tiktok_oauth_state", state);
 
-  const authUrl =
-    "https://www.tiktok.com/v2/auth/authorize" +
-    "?client_key=" + import.meta.env.VITE_TIKTOK_CLIENT_KEY +
-    "&response_type=code" +
-    "&scope=user.info.basic" +
-    "&redirect_uri=" +
-    encodeURIComponent(import.meta.env.VITE_TIKTOK_REDIRECT_URI) +
-    "&state=" + state;
+  const initiateTikTokSandboxOAuth = () => {
+    const state = crypto.randomUUID();
+    sessionStorage.setItem("tiktok_oauth_state", state);
 
-  window.location.href = authUrl;
-};
+    const authUrl =
+      "https://www.tiktok.com/v2/auth/authorize" +
+      "?client_key=" + import.meta.env.VITE_TIKTOK_CLIENT_KEY +
+      "&response_type=code" +
+      "&scope=user.info.basic" +
+      "&redirect_uri=" +
+      encodeURIComponent(import.meta.env.VITE_TIKTOK_REDIRECT_URI) +
+      "&state=" + state;
+
+    window.location.href = authUrl;
+  };
 
   const handleConnect = async (platform: string) => {
-  if (platform === 'tiktok') {
-    initiateTikTokSandboxOAuth();
-    return;
-  }
+    if (platform === 'tiktok') {
+      initiateTikTokSandboxOAuth();
+      return;
+    }
 
-  if (platform === 'linkedin') {
-  initiateLinkedInOAuth();
-  return;
-}
+    if (platform === 'linkedin') {
+      const state = crypto.randomUUID();
+      sessionStorage.setItem("linkedin_oauth_state", state);
 
-  toast({
-    title: 'Coming soon',
-    description: `${platform} integration is coming soon.`,
-  });
-};
+      const authUrl =
+        "https://www.linkedin.com/oauth/v2/authorization" +
+        "?response_type=code" +
+        "&client_id=" + import.meta.env.VITE_LINKEDIN_CLIENT_ID +
+        "&redirect_uri=" + encodeURIComponent(import.meta.env.VITE_LINKEDIN_REDIRECT_URI) +
+        "&state=" + state +
+        "&scope=" + encodeURIComponent("openid profile email");
 
+      window.location.href = authUrl;
+      return;
+    }
+
+    toast({
+      title: 'Coming soon',
+      description: `${platform} integration is coming soon.`,
+    });
+  };
 
   const handleDisconnect = async (platform: string) => {
     try {
@@ -241,7 +209,18 @@ const initiateTikTokSandboxOAuth = () => {
       if (platform === 'tiktok') {
         result = await disconnectTikTok();
       } else if (platform === 'linkedin') {
-        result = await disconnectLinkedIn();
+        if (user) {
+            const { error } = await supabase
+                .from('social_accounts')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('platform', 'linkedin');
+            if (!error) {
+                result = { success: true };
+            } else {
+                result = { success: false, error: error.message };
+            }
+        }
       } else {
         return;
       }
@@ -340,9 +319,9 @@ const initiateTikTokSandboxOAuth = () => {
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-             {platforms.map((platform) => {
-              const account = socialAccounts[platform.id];
-              const isConnected = !!account;
+              {platforms.map((platform) => {
+                const account = socialAccounts[platform.id];
+                const isConnected = !!account;
                 return (
                   <div
                     key={platform.id}
@@ -356,27 +335,14 @@ const initiateTikTokSandboxOAuth = () => {
                       {isConnected ? account.username || 'Connected' : 'Not connected'}
                     </p>
                     <Button
-  size="sm"
-  className="w-full"
-  variant={isConnected ? 'outline' : 'default'}
-  disabled={
-    loadingAccounts ||
-    (!platform.supported) ||
-    isConnected
-  }
-  onClick={() => {
-    if (!isConnected && platform.supported) {
-      handleConnect(platform.id);
-    }
-  }}
->
-  {isConnected
-    ? 'Connected'
-    : platform.supported
-      ? 'Connect'
-      : 'Coming Soon'}
-</Button>
-
+                      size="sm"
+                      className="w-full"
+                      variant={isConnected ? 'outline' : 'default'}
+                      disabled={loadingAccounts || !platform.supported}
+                      onClick={() => isConnected ? handleDisconnect(platform.id) : handleConnect(platform.id)}
+                    >
+                      {isConnected ? 'Disconnect' : platform.supported ? 'Connect' : 'Coming Soon'}
+                    </Button>
                   </div>
                 );
               })}
