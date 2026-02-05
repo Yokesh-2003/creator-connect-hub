@@ -24,6 +24,7 @@ const LinkedInCallback = () => {
               headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${session.access_token}`,
+                apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
               },
               body: JSON.stringify({ code }),
             }

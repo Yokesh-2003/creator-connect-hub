@@ -11,7 +11,6 @@ const LINKEDIN_CLIENT_ID = Deno.env.get("LINKEDIN_CLIENT_ID")!;
 const LINKEDIN_CLIENT_SECRET = Deno.env.get("LINKEDIN_CLIENT_SECRET")!;
 const LINKEDIN_REDIRECT_URI = Deno.env.get("LINKEDIN_REDIRECT_URI")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -40,25 +39,29 @@ serve(async (req) => {
       );
     }
 
-    // 3️⃣ Create Supabase client (service role)
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-      global: {
-        headers: { Authorization: authHeader },
-      },
-    });
-
-    // 4️⃣ Validate logged-in user
+    // 3️⃣ Client ONLY for auth (ANON KEY)
+    const authClient = createClient(
+        SUPABASE_URL,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        {
+          global: {
+            headers: { Authorization: authHeader },
+          },
+        }
+      );
+    
     const {
       data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
+      error: authError,
+    } = await authClient.auth.getUser();
+    
+    if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized user" }),
+        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     // 5️⃣ Exchange LinkedIn code → access token
     const tokenRes = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
@@ -100,8 +103,14 @@ serve(async (req) => {
       );
     }
 
-    // 7️⃣ Save connection
-    const { error: dbError } = await supabase
+    // 7️⃣ Client for DB write (SERVICE ROLE)
+    const adminSupabase = createClient(
+        SUPABASE_URL,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+
+    // 8️⃣ Save connection
+    const { error: dbError } = await adminSupabase
       .from("social_accounts")
       .upsert(
         {
@@ -121,7 +130,7 @@ serve(async (req) => {
       );
     }
 
-    // 8️⃣ Done
+    // 9️⃣ Done
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
