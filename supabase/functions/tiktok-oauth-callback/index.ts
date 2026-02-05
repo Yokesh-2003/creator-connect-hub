@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
 
 const TIKTOK_CLIENT_ID = Deno.env.get("TIKTOK_CLIENT_ID")!;

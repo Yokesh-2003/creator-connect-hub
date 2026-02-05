@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2?target=deno";
 import { corsHeaders } from "../_shared/cors.ts";
 
 console.log("Sync TikTok Stats function booting up...");
